@@ -1,0 +1,27 @@
+{
+  "dut_name":"branch_predictor_validation",
+  "version":"v1.0",
+  "total_bins":66,
+  "coverpoints":[
+    {"name":"branch_kind","type":"basic","signal":"kind","stage":"DECODE","difficulty":"easy","bins":[{"name":"conditional","value":0},{"name":"jump","value":1},{"name":"call","value":2},{"name":"return","value":3}]},
+    {"name":"prediction_outcome","type":"basic","signal":"outcome","stage":"RESOLVE","difficulty":"medium","bins":[{"name":"correct_not_taken","value":0},{"name":"correct_taken","value":1},{"name":"direction_mispredict","value":2},{"name":"target_mispredict","value":3}]},
+    {"name":"btb_result","type":"basic","signal":"btb_result","stage":"BTB","difficulty":"medium","bins":[{"name":"none","value":0},{"name":"hit","value":1},{"name":"miss","value":2},{"name":"replacement","value":3}]},
+    {"name":"pht_counter","type":"basic","signal":"pht_before","stage":"PHT","difficulty":"medium","bins":[{"name":"strong_nt","value":0},{"name":"weak_nt","value":1},{"name":"weak_t","value":2},{"name":"strong_t","value":3}]},
+    {"name":"history_class","type":"basic","signal":"ghr_class","stage":"PHT","difficulty":"medium","bins":[{"name":"zero","value":0},{"name":"ones","value":1},{"name":"alternating","value":2},{"name":"mixed","value":3}]},
+    {"name":"ras_level","type":"boundary","signal":"ras_level","stage":"RAS","difficulty":"medium","bins":[{"name":"empty","value":0},{"name":"one","value":1},{"name":"half","value":2},{"name":"full","value":4}]},
+    {"name":"front_stall","type":"condition","signal":"stalled","stage":"FRONTEND","difficulty":"easy","bins":[{"name":"running","value":0},{"name":"stalled","value":1}]},
+    {"name":"flush_event","type":"condition","signal":"flushed","stage":"RECOVERY","difficulty":"easy","bins":[{"name":"normal","value":0},{"name":"flush","value":1}]},
+    {"name":"kind_x_outcome","type":"cross","signal":"kind,outcome","stage":"RESOLVE","difficulty":"hard","bins":[{"name":"cond_correct_nt","cross":[0,0]},{"name":"cond_correct_t","cross":[0,1]},{"name":"cond_dir_misp","cross":[0,2]},{"name":"cond_target_misp","cross":[0,3]},{"name":"jump_correct","cross":[1,1]},{"name":"jump_target_misp","cross":[1,3]},{"name":"call_correct","cross":[2,1]},{"name":"call_target_misp","cross":[2,3]},{"name":"return_correct","cross":[3,1]},{"name":"return_dir_misp","cross":[3,2]}]},
+    {"name":"pht_x_actual","type":"cross","signal":"pht_before,actual_taken","stage":"PHT","difficulty":"hard","bins":[{"name":"sn_nt","cross":[0,0]},{"name":"sn_t","cross":[0,1]},{"name":"wn_nt","cross":[1,0]},{"name":"wn_t","cross":[1,1]},{"name":"wt_nt","cross":[2,0]},{"name":"wt_t","cross":[2,1]},{"name":"st_nt","cross":[3,0]},{"name":"st_t","cross":[3,1]}]},
+    {"name":"kind_x_btb","type":"cross","signal":"kind,btb_result","stage":"BTB","difficulty":"hard","bins":[{"name":"cond_hit","cross":[0,1]},{"name":"cond_miss","cross":[0,2]},{"name":"jump_hit","cross":[1,1]},{"name":"jump_miss","cross":[1,2]},{"name":"call_hit","cross":[2,1]},{"name":"call_replace","cross":[2,3]},{"name":"return_hit","cross":[3,1]},{"name":"return_miss","cross":[3,2]}]},
+    {"name":"ras_x_kind","type":"cross","signal":"ras_level,kind","stage":"RAS","difficulty":"hard","bins":[{"name":"empty_return","cross":[0,3]},{"name":"one_return","cross":[1,3]},{"name":"half_call","cross":[2,2]},{"name":"full_call","cross":[4,2]}]},
+    {"name":"seq_train_strong_taken","type":"seq_hit","seq":"seq1","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_train_strong_nt","type":"seq_hit","seq":"seq2","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_pht_alias","type":"seq_hit","seq":"seq3","difficulty":"hardest","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_mispredict_recover","type":"seq_hit","seq":"seq4","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_call_return_match","type":"seq_hit","seq":"seq5","difficulty":"hardest","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_ras_overflow","type":"seq_hit","seq":"seq6","difficulty":"hardest","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_stall_recover","type":"seq_hit","seq":"seq7","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_flush_recover","type":"seq_hit","seq":"seq8","difficulty":"hard","bins":[{"name":"hit","value":1}]}
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "train_accuracy": 1.0,
+  "validation_accuracy": 1.0,
+  "samples": 1500,
+  "seed": 260923,
+  "full_document_predictions": {
+    "dma": {
+      "dma": 1.0,
+      "spi_master": 3.7370416094972825e-08,
+      "spi_xfer": 4.2561858037970524e-08
+    },
+    "spi_master": {
+      "dma": 2.1961723106755926e-08,
+      "spi_master": 0.9999997615814209,
+      "spi_xfer": 2.858894845303439e-07
+    },
+    "spi_xfer": {
+      "dma": 2.1789288950913033e-07,
+      "spi_master": 1.8860935142583912e-06,
+      "spi_xfer": 0.9999978542327881
+    }
+  }
+}

@@ -1,0 +1,39 @@
+[
+  {
+    "dut": "branch_predictor_validation",
+    "backend": "local",
+    "agent": "full",
+    "seed": 260923,
+    "steps": 2000,
+    "interval": 1000,
+    "curve": [
+      [
+        0,
+        0.15151515151515152
+      ],
+      [
+        1000,
+        1.0
+      ],
+      [
+        1999,
+        1.0
+      ]
+    ],
+    "covered_bins": 66,
+    "total_bins": 66,
+    "coverage": 1.0,
+    "missing_bins": [],
+    "elapsed_seconds": 0.34551709599691094,
+    "predict_mean_ms": 0.0315281065,
+    "predict_p99_ms": 0.29322544999999994,
+    "neural_route": "dma",
+    "neural_confidence": 0.9514366984367371,
+    "llm_status": {
+      "status": "disabled",
+      "model": "deepseek-v4-pro",
+      "latency_s": 0.0,
+      "usage": {}
+    }
+  }
+]

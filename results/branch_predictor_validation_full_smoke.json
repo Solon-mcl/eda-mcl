@@ -1,0 +1,92 @@
+[
+  {
+    "dut": "branch_predictor_validation",
+    "backend": "local",
+    "agent": "full",
+    "seed": 260923,
+    "steps": 100,
+    "interval": 25,
+    "curve": [
+      [
+        0,
+        0.15151515151515152
+      ],
+      [
+        25,
+        0.18181818181818182
+      ],
+      [
+        50,
+        0.2727272727272727
+      ],
+      [
+        75,
+        0.3333333333333333
+      ],
+      [
+        99,
+        0.3333333333333333
+      ]
+    ],
+    "covered_bins": 22,
+    "total_bins": 66,
+    "coverage": 0.3333333432674408,
+    "missing_bins": [
+      "branch_kind.call",
+      "branch_kind.return",
+      "prediction_outcome.correct_taken",
+      "prediction_outcome.target_mispredict",
+      "btb_result.hit",
+      "btb_result.replacement",
+      "pht_counter.strong_nt",
+      "pht_counter.weak_t",
+      "pht_counter.strong_t",
+      "history_class.ones",
+      "history_class.alternating",
+      "ras_level.one",
+      "ras_level.half",
+      "ras_level.full",
+      "kind_x_outcome.cond_correct_t",
+      "kind_x_outcome.cond_target_misp",
+      "kind_x_outcome.jump_correct",
+      "kind_x_outcome.jump_target_misp",
+      "kind_x_outcome.call_correct",
+      "kind_x_outcome.call_target_misp",
+      "kind_x_outcome.return_correct",
+      "kind_x_outcome.return_dir_misp",
+      "pht_x_actual.sn_nt",
+      "pht_x_actual.sn_t",
+      "pht_x_actual.wt_nt",
+      "pht_x_actual.wt_t",
+      "pht_x_actual.st_nt",
+      "pht_x_actual.st_t",
+      "kind_x_btb.cond_hit",
+      "kind_x_btb.jump_hit",
+      "kind_x_btb.call_hit",
+      "kind_x_btb.call_replace",
+      "kind_x_btb.return_hit",
+      "kind_x_btb.return_miss",
+      "ras_x_kind.empty_return",
+      "ras_x_kind.one_return",
+      "ras_x_kind.half_call",
+      "ras_x_kind.full_call",
+      "seq_train_strong_taken.hit",
+      "seq_train_strong_nt.hit",
+      "seq_pht_alias.hit",
+      "seq_mispredict_recover.hit",
+      "seq_call_return_match.hit",
+      "seq_ras_overflow.hit"
+    ],
+    "elapsed_seconds": 0.01354834099947766,
+    "predict_mean_ms": 0.023233330000000003,
+    "predict_p99_ms": 0.272828710000001,
+    "neural_route": "dma",
+    "neural_confidence": 0.9720841646194458,
+    "llm_status": {
+      "status": "disabled",
+      "model": "deepseek-v4-pro",
+      "latency_s": 0.0,
+      "usage": {}
+    }
+  }
+]

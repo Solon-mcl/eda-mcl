@@ -1,0 +1,7 @@
+{
+  "architecture": "DeepSets phi(13,24) + rho(51,32,4)",
+  "train_accuracy": 0.9103641456582633,
+  "validation_accuracy": 0.8888888888888888,
+  "samples": 2100,
+  "seed": 260923
+}

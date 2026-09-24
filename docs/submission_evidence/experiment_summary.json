@@ -1,0 +1,29 @@
+{
+  "dma_xfer_public": {
+    "runs": 3,
+    "final_mean": 1.0,
+    "final_variance": 0.0,
+    "auc_mean": 27368.565217391308,
+    "auc_variance": 1.3234889800848443e-23,
+    "predict_mean_ms": 0.046036891455555555,
+    "predict_p99_ms_max": 0.3547022399999987
+  },
+  "spi_master_public": {
+    "runs": 3,
+    "final_mean": 1.0,
+    "final_variance": 0.0,
+    "auc_mean": 24715.666666666668,
+    "auc_variance": 0.0,
+    "predict_mean_ms": 0.018790601333333334,
+    "predict_p99_ms_max": 0.325390009999999
+  },
+  "spi_xfer_public": {
+    "runs": 3,
+    "final_mean": 1.0,
+    "final_variance": 0.0,
+    "auc_mean": 26993.18604651163,
+    "auc_variance": 0.0,
+    "predict_mean_ms": 0.018365378533333334,
+    "predict_p99_ms_max": 0.30680242999999974
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "method": "fitted Q iteration with semi-Markov discount and conservative pseudo-observations",
+  "source_backend": "verilator",
+  "transitions": 64,
+  "iterations": 30,
+  "gamma_per_1000_cycles": 0.97,
+  "cql_alpha": 0.04,
+  "bellman_rmse": 0.05198044973092675,
+  "initial_q": {
+    "spi_master_public": [
+      0.670906495894066,
+      0.7005510947775565,
+      0.7547715284152033,
+      0.7670425003790313
+    ],
+    "spi_xfer_public": [
+      0.7346852720658253,
+      0.706419914878234,
+      0.7559205231353611,
+      0.811863237618043
+    ]
+  },
+  "initial_greedy_macro": {
+    "spi_master_public": 3,
+    "spi_xfer_public": 3
+  }
+}

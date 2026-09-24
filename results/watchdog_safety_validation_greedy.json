@@ -1,0 +1,39 @@
+[
+  {
+    "dut": "watchdog_safety_validation",
+    "backend": "local",
+    "agent": "greedy",
+    "seed": 260923,
+    "steps": 100,
+    "interval": 25,
+    "curve": [
+      [
+        0,
+        0.15254237288135594
+      ],
+      [
+        25,
+        0.7627118644067796
+      ],
+      [
+        50,
+        1.0
+      ],
+      [
+        75,
+        1.0
+      ],
+      [
+        99,
+        1.0
+      ]
+    ],
+    "covered_bins": 59,
+    "total_bins": 59,
+    "coverage": 1.0,
+    "missing_bins": [],
+    "elapsed_seconds": 0.010393151998869143,
+    "predict_mean_ms": 0.00303952,
+    "predict_p99_ms": 0.08907582000000039
+  }
+]

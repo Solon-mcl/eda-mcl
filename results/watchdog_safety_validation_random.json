@@ -1,0 +1,72 @@
+[
+  {
+    "dut": "watchdog_safety_validation",
+    "backend": "local",
+    "agent": "random",
+    "seed": 260923,
+    "steps": 2000,
+    "interval": 500,
+    "curve": [
+      [
+        0,
+        0.15254237288135594
+      ],
+      [
+        500,
+        0.4576271186440678
+      ],
+      [
+        1000,
+        0.4576271186440678
+      ],
+      [
+        1500,
+        0.4576271186440678
+      ],
+      [
+        1999,
+        0.4576271186440678
+      ]
+    ],
+    "covered_bins": 27,
+    "total_bins": 59,
+    "coverage": 0.4576271176338196,
+    "missing_bins": [
+      "fsm_state.closed_window",
+      "fsm_state.open_window",
+      "fsm_state.pretimeout",
+      "fsm_state.reset_pending",
+      "action_result.cfg_accept",
+      "action_result.service_accept",
+      "action_result.service_early",
+      "action_result.service_late",
+      "counter_class.before_window",
+      "counter_class.window_boundary",
+      "counter_class.near_timeout",
+      "enabled.on",
+      "key_phase.waiting_b",
+      "state_x_result.disabled_cfg",
+      "state_x_result.closed_cfg_reject",
+      "state_x_result.closed_early",
+      "state_x_result.open_service",
+      "state_x_result.open_bad_key",
+      "state_x_result.pretimeout_late",
+      "state_x_result.timeout_wait",
+      "counter_x_state.zero_closed",
+      "counter_x_state.before_closed",
+      "counter_x_state.boundary_open",
+      "counter_x_state.near_pre",
+      "key_x_result.a_latched",
+      "key_x_result.pair_accept",
+      "key_x_result.pair_late",
+      "seq_closed_to_open.hit",
+      "seq_valid_key_pair.hit",
+      "seq_early_service.hit",
+      "seq_timeout_reset.hit",
+      "seq_external_reset_recovery.hit"
+    ],
+    "elapsed_seconds": 0.30083685199861065,
+    "predict_mean_ms": 0.0124211845,
+    "predict_p99_ms": 0.042993139999999985
+  }
+]

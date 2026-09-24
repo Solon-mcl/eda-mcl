@@ -1,0 +1,33 @@
+{
+  "model": "deepseek-v4-pro",
+  "thinking": "disabled",
+  "response_format": "json_object",
+  "tests": [
+    {
+      "case": "compact_alu",
+      "status": "ok",
+      "finish_reason": "stop",
+      "latency_seconds": 9.4088,
+      "prompt_tokens": 369,
+      "completion_tokens": 824,
+      "total_tokens": 1193,
+      "family_hint": "generic",
+      "action_dim": 4,
+      "validated_program_actions": 16
+    },
+    {
+      "case": "spi_xfer_public",
+      "status": "ok",
+      "finish_reason": "stop",
+      "latency_seconds": 28.3865,
+      "prompt_tokens": 7225,
+      "completion_tokens": 3073,
+      "total_tokens": 10298,
+      "family_hint": "spi_xfer",
+      "action_dim": 12,
+      "validated_program_actions": 32,
+      "selected_policy": "_SpiPolicy"
+    }
+  ],
+  "secrets_logged": false
+}

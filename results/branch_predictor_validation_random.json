@@ -1,0 +1,53 @@
+[
+  {
+    "dut": "branch_predictor_validation",
+    "backend": "local",
+    "agent": "random",
+    "seed": 260923,
+    "steps": 2000,
+    "interval": 500,
+    "curve": [
+      [
+        0,
+        0.15151515151515152
+      ],
+      [
+        500,
+        0.7424242424242424
+      ],
+      [
+        1000,
+        0.7878787878787878
+      ],
+      [
+        1500,
+        0.803030303030303
+      ],
+      [
+        1999,
+        0.803030303030303
+      ]
+    ],
+    "covered_bins": 53,
+    "total_bins": 66,
+    "coverage": 0.8030303120613098,
+    "missing_bins": [
+      "prediction_outcome.correct_taken",
+      "btb_result.hit",
+      "history_class.ones",
+      "kind_x_outcome.cond_correct_t",
+      "kind_x_outcome.jump_correct",
+      "kind_x_outcome.call_correct",
+      "kind_x_outcome.return_correct",
+      "kind_x_btb.cond_hit",
+      "kind_x_btb.jump_hit",
+      "kind_x_btb.call_hit",
+      "kind_x_btb.return_hit",
+      "seq_call_return_match.hit",
+      "seq_ras_overflow.hit"
+    ],
+    "elapsed_seconds": 0.2758909059994039,
+    "predict_mean_ms": 0.009784169,
+    "predict_p99_ms": 0.048534539999999994
+  }
+]

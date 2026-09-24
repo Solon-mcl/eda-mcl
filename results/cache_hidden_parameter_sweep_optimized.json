@@ -1,0 +1,1986 @@
+{
+  "cases": [
+    {
+      "case": "default",
+      "agent": "full",
+      "secrets": {
+        "replacement_xor": 1,
+        "memory_latency": 3,
+        "poison_tag": 42
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8213314420372883,
+      "missing_bins": [
+        "result.flush_dirty",
+        "result.poison",
+        "dirty_count.half",
+        "dirty_count.full",
+        "valid_count.half",
+        "valid_count.full",
+        "op_x_result.read_clean_evict",
+        "op_x_result.write_miss",
+        "op_x_result.write_dirty_evict",
+        "op_x_result.inv_miss",
+        "op_x_result.flush_dirty",
+        "state_x_stall.flush_stall"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.8133333325386047
+        ],
+        [
+          1000,
+          0.8399999737739563
+        ],
+        [
+          1500,
+          0.8399999737739563
+        ],
+        [
+          2000,
+          0.8399999737739563
+        ],
+        [
+          2500,
+          0.8399999737739563
+        ],
+        [
+          3000,
+          0.8399999737739563
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.6481506210002408,
+      "predict_mean_ms": 0.0205773665,
+      "predict_p99_ms": 0.2325771800000003,
+      "neural_route": "dma",
+      "neural_confidence": 0.883008599281311,
+      "llm_status": {
+        "status": "disabled",
+        "model": "deepseek-v4-pro",
+        "latency_s": 0.0,
+        "usage": {}
+      }
+    },
+    {
+      "case": "default",
+      "agent": "random",
+      "secrets": {
+        "replacement_xor": 1,
+        "memory_latency": 3,
+        "poison_tag": 42
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.817331045812363,
+      "missing_bins": [
+        "result.hit",
+        "result.invalidated",
+        "result.poison",
+        "dirty_count.full",
+        "data_class.ones",
+        "data_class.aa",
+        "op_x_result.read_hit",
+        "op_x_result.write_hit",
+        "op_x_result.inv_hit",
+        "seq_read_hit_after_fill.hit",
+        "seq_write_read.hit",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.7866666913032532
+        ],
+        [
+          1000,
+          0.8266666531562805
+        ],
+        [
+          1500,
+          0.8266666531562805
+        ],
+        [
+          2000,
+          0.8266666531562805
+        ],
+        [
+          2500,
+          0.8266666531562805
+        ],
+        [
+          3000,
+          0.8399999737739563
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.592934428999797,
+      "predict_mean_ms": 0.009937395,
+      "predict_p99_ms": 0.04096739000000005,
+      "neural_route": null,
+      "neural_confidence": 0.0,
+      "llm_status": null
+    },
+    {
+      "case": "xor0_fast_low",
+      "agent": "full",
+      "secrets": {
+        "replacement_xor": 0,
+        "memory_latency": 1,
+        "poison_tag": 0
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8213314420372883,
+      "missing_bins": [
+        "result.invalidated",
+        "result.flush_dirty",
+        "dirty_count.half",
+        "dirty_count.full",
+        "valid_count.half",
+        "valid_count.full",
+        "op_x_result.write_miss",
+        "op_x_result.write_clean_evict",
+        "op_x_result.inv_hit",
+        "op_x_result.flush_dirty",
+        "state_x_stall.flush_stall",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.8133333325386047
+        ],
+        [
+          1000,
+          0.8399999737739563
+        ],
+        [
+          1500,
+          0.8399999737739563
+        ],
+        [
+          2000,
+          0.8399999737739563
+        ],
+        [
+          2500,
+          0.8399999737739563
+        ],
+        [
+          3000,
+          0.8399999737739563
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.6530441009999777,
+      "predict_mean_ms": 0.019481501199999997,
+      "predict_p99_ms": 0.22582789000000011,
+      "neural_route": "dma",
+      "neural_confidence": 0.883008599281311,
+      "llm_status": {
+        "status": "disabled",
+        "model": "deepseek-v4-pro",
+        "latency_s": 0.0,
+        "usage": {}
+      }
+    },
+    {
+      "case": "xor0_fast_low",
+      "agent": "random",
+      "secrets": {
+        "replacement_xor": 0,
+        "memory_latency": 1,
+        "poison_tag": 0
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8019961816946951,
+      "missing_bins": [
+        "result.hit",
+        "result.invalidated",
+        "result.poison",
+        "dirty_count.full",
+        "data_class.ones",
+        "data_class.aa",
+        "op_x_result.read_hit",
+        "op_x_result.write_hit",
+        "op_x_result.inv_hit",
+        "seq_read_hit_after_fill.hit",
+        "seq_write_read.hit",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.7066666483879089
+        ],
+        [
+          1000,
+          0.7200000286102295
+        ],
+        [
+          1500,
+          0.7333333492279053
+        ],
+        [
+          2000,
+          0.8133333325386047
+        ],
+        [
+          2500,
+          0.8133333325386047
+        ],
+        [
+          3000,
+          0.8399999737739563
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.4196181540010002,
+      "predict_mean_ms": 0.008230777,
+      "predict_p99_ms": 0.027758700000000015,
+      "neural_route": null,
+      "neural_confidence": 0.0,
+      "llm_status": null
+    },
+    {
+      "case": "xor1_fast_high",
+      "agent": "full",
+      "secrets": {
+        "replacement_xor": 1,
+        "memory_latency": 1,
+        "poison_tag": 67108863
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8213314420372883,
+      "missing_bins": [
+        "result.flush_dirty",
+        "result.poison",
+        "dirty_count.half",
+        "dirty_count.full",
+        "valid_count.half",
+        "valid_count.full",
+        "op_x_result.read_clean_evict",
+        "op_x_result.write_miss",
+        "op_x_result.write_dirty_evict",
+        "op_x_result.inv_miss",
+        "op_x_result.flush_dirty",
+        "state_x_stall.flush_stall"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.8133333325386047
+        ],
+        [
+          1000,
+          0.8399999737739563
+        ],
+        [
+          1500,
+          0.8399999737739563
+        ],
+        [
+          2000,
+          0.8399999737739563
+        ],
+        [
+          2500,
+          0.8399999737739563
+        ],
+        [
+          3000,
+          0.8399999737739563
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.6171701080002094,
+      "predict_mean_ms": 0.0197423192,
+      "predict_p99_ms": 0.2235743500000002,
+      "neural_route": "dma",
+      "neural_confidence": 0.883008599281311,
+      "llm_status": {
+        "status": "disabled",
+        "model": "deepseek-v4-pro",
+        "latency_s": 0.0,
+        "usage": {}
+      }
+    },
+    {
+      "case": "xor1_fast_high",
+      "agent": "random",
+      "secrets": {
+        "replacement_xor": 1,
+        "memory_latency": 1,
+        "poison_tag": 67108863
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8193312439248256,
+      "missing_bins": [
+        "result.hit",
+        "result.invalidated",
+        "result.poison",
+        "dirty_count.full",
+        "data_class.ones",
+        "data_class.aa",
+        "op_x_result.read_hit",
+        "op_x_result.write_hit",
+        "op_x_result.inv_hit",
+        "seq_read_hit_after_fill.hit",
+        "seq_write_read.hit",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.800000011920929
+        ],
+        [
+          1000,
+          0.8266666531562805
+        ],
+        [
+          1500,
+          0.8266666531562805
+        ],
+        [
+          2000,
+          0.8399999737739563
+        ],
+        [
+          2500,
+          0.8399999737739563
+        ],
+        [
+          3000,
+          0.8399999737739563
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.584201702999053,
+      "predict_mean_ms": 0.009954476,
+      "predict_p99_ms": 0.038863490000000014,
+      "neural_route": null,
+      "neural_confidence": 0.0,
+      "llm_status": null
+    },
+    {
+      "case": "xor0_mid_a",
+      "agent": "full",
+      "secrets": {
+        "replacement_xor": 0,
+        "memory_latency": 4,
+        "poison_tag": 22369621
+      },
+      "steps": 10000,
+      "covered_bins": 62,
+      "total_bins": 75,
+      "coverage": 0.8266666531562805,
+      "auc": 0.8083314877716896,
+      "missing_bins": [
+        "result.invalidated",
+        "result.flush_dirty",
+        "result.poison",
+        "dirty_count.half",
+        "dirty_count.full",
+        "valid_count.half",
+        "valid_count.full",
+        "op_x_result.write_miss",
+        "op_x_result.write_clean_evict",
+        "op_x_result.inv_hit",
+        "op_x_result.flush_dirty",
+        "state_x_stall.flush_stall",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.800000011920929
+        ],
+        [
+          1000,
+          0.8266666531562805
+        ],
+        [
+          1500,
+          0.8266666531562805
+        ],
+        [
+          2000,
+          0.8266666531562805
+        ],
+        [
+          2500,
+          0.8266666531562805
+        ],
+        [
+          3000,
+          0.8266666531562805
+        ],
+        [
+          3500,
+          0.8266666531562805
+        ],
+        [
+          4000,
+          0.8266666531562805
+        ],
+        [
+          4500,
+          0.8266666531562805
+        ],
+        [
+          5000,
+          0.8266666531562805
+        ],
+        [
+          5500,
+          0.8266666531562805
+        ],
+        [
+          6000,
+          0.8266666531562805
+        ],
+        [
+          6500,
+          0.8266666531562805
+        ],
+        [
+          7000,
+          0.8266666531562805
+        ],
+        [
+          7500,
+          0.8266666531562805
+        ],
+        [
+          8000,
+          0.8266666531562805
+        ],
+        [
+          8500,
+          0.8266666531562805
+        ],
+        [
+          9000,
+          0.8266666531562805
+        ],
+        [
+          9500,
+          0.8266666531562805
+        ],
+        [
+          9999,
+          0.8266666531562805
+        ]
+      ],
+      "elapsed_seconds": 1.702334243000223,
+      "predict_mean_ms": 0.0204806612,
+      "predict_p99_ms": 0.23413140000000013,
+      "neural_route": "dma",
+      "neural_confidence": 0.883008599281311,
+      "llm_status": {
+        "status": "disabled",
+        "model": "deepseek-v4-pro",
+        "latency_s": 0.0,
+        "usage": {}
+      }
+    },
+    {
+      "case": "xor0_mid_a",
+      "agent": "random",
+      "secrets": {
+        "replacement_xor": 0,
+        "memory_latency": 4,
+        "poison_tag": 22369621
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8126639139027533,
+      "missing_bins": [
+        "result.hit",
+        "result.invalidated",
+        "result.poison",
+        "dirty_count.full",
+        "data_class.ones",
+        "data_class.aa",
+        "op_x_result.read_hit",
+        "op_x_result.write_hit",
+        "op_x_result.inv_hit",
+        "seq_read_hit_after_fill.hit",
+        "seq_write_read.hit",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.7733333110809326
+        ],
+        [
+          1000,
+          0.800000011920929
+        ],
+        [
+          1500,
+          0.800000011920929
+        ],
+        [
+          2000,
+          0.8266666531562805
+        ],
+        [
+          2500,
+          0.8266666531562805
+        ],
+        [
+          3000,
+          0.8266666531562805
+        ],
+        [
+          3500,
+          0.8266666531562805
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.658317626999633,
+      "predict_mean_ms": 0.010045909799999999,
+      "predict_p99_ms": 0.041899340000000014,
+      "neural_route": null,
+      "neural_confidence": 0.0,
+      "llm_status": null
+    },
+    {
+      "case": "xor1_mid_b",
+      "agent": "full",
+      "secrets": {
+        "replacement_xor": 1,
+        "memory_latency": 5,
+        "poison_tag": 44739242
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8213314420372883,
+      "missing_bins": [
+        "result.flush_dirty",
+        "result.poison",
+        "dirty_count.half",
+        "dirty_count.full",
+        "valid_count.half",
+        "valid_count.full",
+        "op_x_result.read_clean_evict",
+        "op_x_result.write_miss",
+        "op_x_result.write_dirty_evict",
+        "op_x_result.inv_miss",
+        "op_x_result.flush_dirty",
+        "state_x_stall.flush_stall"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.8133333325386047
+        ],
+        [
+          1000,
+          0.8399999737739563
+        ],
+        [
+          1500,
+          0.8399999737739563
+        ],
+        [
+          2000,
+          0.8399999737739563
+        ],
+        [
+          2500,
+          0.8399999737739563
+        ],
+        [
+          3000,
+          0.8399999737739563
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.6518228859986266,
+      "predict_mean_ms": 0.0195093257,
+      "predict_p99_ms": 0.22960098,
+      "neural_route": "dma",
+      "neural_confidence": 0.883008599281311,
+      "llm_status": {
+        "status": "disabled",
+        "model": "deepseek-v4-pro",
+        "latency_s": 0.0,
+        "usage": {}
+      }
+    },
+    {
+      "case": "xor1_mid_b",
+      "agent": "random",
+      "secrets": {
+        "replacement_xor": 1,
+        "memory_latency": 5,
+        "poison_tag": 44739242
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8139973793110618,
+      "missing_bins": [
+        "result.hit",
+        "result.invalidated",
+        "result.poison",
+        "dirty_count.full",
+        "data_class.ones",
+        "data_class.aa",
+        "op_x_result.read_hit",
+        "op_x_result.write_hit",
+        "op_x_result.inv_hit",
+        "seq_read_hit_after_fill.hit",
+        "seq_write_read.hit",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.7599999904632568
+        ],
+        [
+          1000,
+          0.8133333325386047
+        ],
+        [
+          1500,
+          0.8133333325386047
+        ],
+        [
+          2000,
+          0.8266666531562805
+        ],
+        [
+          2500,
+          0.8266666531562805
+        ],
+        [
+          3000,
+          0.8266666531562805
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.5353688579998561,
+      "predict_mean_ms": 0.0090854171,
+      "predict_p99_ms": 0.03387240000000001,
+      "neural_route": null,
+      "neural_confidence": 0.0,
+      "llm_status": null
+    },
+    {
+      "case": "xor0_slow_low",
+      "agent": "full",
+      "secrets": {
+        "replacement_xor": 0,
+        "memory_latency": 8,
+        "poison_tag": 1
+      },
+      "steps": 10000,
+      "covered_bins": 61,
+      "total_bins": 75,
+      "coverage": 0.8133333325386047,
+      "auc": 0.7926645997089438,
+      "missing_bins": [
+        "fsm_state.flush_scan",
+        "operation.flush",
+        "result.invalidated",
+        "result.flush_dirty",
+        "dirty_count.half",
+        "dirty_count.full",
+        "op_x_result.write_miss",
+        "op_x_result.write_clean_evict",
+        "op_x_result.inv_hit",
+        "op_x_result.flush_dirty",
+        "state_x_stall.flush_stall",
+        "state_x_stall.flush_go",
+        "seq_flush_complete.hit",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.7333333492279053
+        ],
+        [
+          1000,
+          0.8133333325386047
+        ],
+        [
+          1500,
+          0.8133333325386047
+        ],
+        [
+          2000,
+          0.8133333325386047
+        ],
+        [
+          2500,
+          0.8133333325386047
+        ],
+        [
+          3000,
+          0.8133333325386047
+        ],
+        [
+          3500,
+          0.8133333325386047
+        ],
+        [
+          4000,
+          0.8133333325386047
+        ],
+        [
+          4500,
+          0.8133333325386047
+        ],
+        [
+          5000,
+          0.8133333325386047
+        ],
+        [
+          5500,
+          0.8133333325386047
+        ],
+        [
+          6000,
+          0.8133333325386047
+        ],
+        [
+          6500,
+          0.8133333325386047
+        ],
+        [
+          7000,
+          0.8133333325386047
+        ],
+        [
+          7500,
+          0.8133333325386047
+        ],
+        [
+          8000,
+          0.8133333325386047
+        ],
+        [
+          8500,
+          0.8133333325386047
+        ],
+        [
+          9000,
+          0.8133333325386047
+        ],
+        [
+          9500,
+          0.8133333325386047
+        ],
+        [
+          9999,
+          0.8133333325386047
+        ]
+      ],
+      "elapsed_seconds": 1.7990704870007903,
+      "predict_mean_ms": 0.021125738,
+      "predict_p99_ms": 0.2334119000000001,
+      "neural_route": "dma",
+      "neural_confidence": 0.883008599281311,
+      "llm_status": {
+        "status": "disabled",
+        "model": "deepseek-v4-pro",
+        "latency_s": 0.0,
+        "usage": {}
+      }
+    },
+    {
+      "case": "xor0_slow_low",
+      "agent": "random",
+      "secrets": {
+        "replacement_xor": 0,
+        "memory_latency": 8,
+        "poison_tag": 1
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8159975804040546,
+      "missing_bins": [
+        "result.hit",
+        "result.invalidated",
+        "result.poison",
+        "dirty_count.full",
+        "data_class.ones",
+        "data_class.aa",
+        "op_x_result.read_hit",
+        "op_x_result.write_hit",
+        "op_x_result.inv_hit",
+        "seq_read_hit_after_fill.hit",
+        "seq_write_read.hit",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.7866666913032532
+        ],
+        [
+          1000,
+          0.800000011920929
+        ],
+        [
+          1500,
+          0.800000011920929
+        ],
+        [
+          2000,
+          0.8399999737739563
+        ],
+        [
+          2500,
+          0.8399999737739563
+        ],
+        [
+          3000,
+          0.8399999737739563
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.5099998509995203,
+      "predict_mean_ms": 0.008695306500000001,
+      "predict_p99_ms": 0.032955850000000085,
+      "neural_route": null,
+      "neural_confidence": 0.0,
+      "llm_status": null
+    },
+    {
+      "case": "xor1_slow_mid",
+      "agent": "full",
+      "secrets": {
+        "replacement_xor": 1,
+        "memory_latency": 8,
+        "poison_tag": 1193046
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8213314420372883,
+      "missing_bins": [
+        "result.flush_dirty",
+        "result.poison",
+        "dirty_count.half",
+        "dirty_count.full",
+        "valid_count.half",
+        "valid_count.full",
+        "op_x_result.read_clean_evict",
+        "op_x_result.write_miss",
+        "op_x_result.write_dirty_evict",
+        "op_x_result.inv_miss",
+        "op_x_result.flush_dirty",
+        "state_x_stall.flush_stall"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.8133333325386047
+        ],
+        [
+          1000,
+          0.8399999737739563
+        ],
+        [
+          1500,
+          0.8399999737739563
+        ],
+        [
+          2000,
+          0.8399999737739563
+        ],
+        [
+          2500,
+          0.8399999737739563
+        ],
+        [
+          3000,
+          0.8399999737739563
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.6760750350003946,
+      "predict_mean_ms": 0.019373376499999997,
+      "predict_p99_ms": 0.22327229000000004,
+      "neural_route": "dma",
+      "neural_confidence": 0.883008599281311,
+      "llm_status": {
+        "status": "disabled",
+        "model": "deepseek-v4-pro",
+        "latency_s": 0.0,
+        "usage": {}
+      }
+    },
+    {
+      "case": "xor1_slow_mid",
+      "agent": "random",
+      "secrets": {
+        "replacement_xor": 1,
+        "memory_latency": 8,
+        "poison_tag": 1193046
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8039963798071578,
+      "missing_bins": [
+        "result.hit",
+        "result.invalidated",
+        "result.poison",
+        "dirty_count.full",
+        "data_class.ones",
+        "data_class.aa",
+        "op_x_result.read_hit",
+        "op_x_result.write_hit",
+        "op_x_result.inv_hit",
+        "seq_read_hit_after_fill.hit",
+        "seq_write_read.hit",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.7599999904632568
+        ],
+        [
+          1000,
+          0.7599999904632568
+        ],
+        [
+          1500,
+          0.7599999904632568
+        ],
+        [
+          2000,
+          0.7599999904632568
+        ],
+        [
+          2500,
+          0.7866666913032532
+        ],
+        [
+          3000,
+          0.8399999737739563
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.7128786770008446,
+      "predict_mean_ms": 0.0103394504,
+      "predict_p99_ms": 0.0434817800000001,
+      "neural_route": null,
+      "neural_confidence": 0.0,
+      "llm_status": null
+    },
+    {
+      "case": "xor0_slow_high",
+      "agent": "full",
+      "secrets": {
+        "replacement_xor": 0,
+        "memory_latency": 8,
+        "poison_tag": 67108862
+      },
+      "steps": 10000,
+      "covered_bins": 60,
+      "total_bins": 75,
+      "coverage": 0.800000011920929,
+      "auc": 0.7796646454433451,
+      "missing_bins": [
+        "fsm_state.flush_scan",
+        "operation.flush",
+        "result.invalidated",
+        "result.flush_dirty",
+        "result.poison",
+        "dirty_count.half",
+        "dirty_count.full",
+        "op_x_result.write_miss",
+        "op_x_result.write_clean_evict",
+        "op_x_result.inv_hit",
+        "op_x_result.flush_dirty",
+        "state_x_stall.flush_stall",
+        "state_x_stall.flush_go",
+        "seq_flush_complete.hit",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.7200000286102295
+        ],
+        [
+          1000,
+          0.800000011920929
+        ],
+        [
+          1500,
+          0.800000011920929
+        ],
+        [
+          2000,
+          0.800000011920929
+        ],
+        [
+          2500,
+          0.800000011920929
+        ],
+        [
+          3000,
+          0.800000011920929
+        ],
+        [
+          3500,
+          0.800000011920929
+        ],
+        [
+          4000,
+          0.800000011920929
+        ],
+        [
+          4500,
+          0.800000011920929
+        ],
+        [
+          5000,
+          0.800000011920929
+        ],
+        [
+          5500,
+          0.800000011920929
+        ],
+        [
+          6000,
+          0.800000011920929
+        ],
+        [
+          6500,
+          0.800000011920929
+        ],
+        [
+          7000,
+          0.800000011920929
+        ],
+        [
+          7500,
+          0.800000011920929
+        ],
+        [
+          8000,
+          0.800000011920929
+        ],
+        [
+          8500,
+          0.800000011920929
+        ],
+        [
+          9000,
+          0.800000011920929
+        ],
+        [
+          9500,
+          0.800000011920929
+        ],
+        [
+          9999,
+          0.800000011920929
+        ]
+      ],
+      "elapsed_seconds": 1.7976019430007,
+      "predict_mean_ms": 0.022300241699999997,
+      "predict_p99_ms": 0.26385944000000006,
+      "neural_route": "dma",
+      "neural_confidence": 0.883008599281311,
+      "llm_status": {
+        "status": "disabled",
+        "model": "deepseek-v4-pro",
+        "latency_s": 0.0,
+        "usage": {}
+      }
+    },
+    {
+      "case": "xor0_slow_high",
+      "agent": "random",
+      "secrets": {
+        "replacement_xor": 0,
+        "memory_latency": 8,
+        "poison_tag": 67108862
+      },
+      "steps": 10000,
+      "covered_bins": 63,
+      "total_bins": 75,
+      "coverage": 0.8399999737739563,
+      "auc": 0.8139973793110618,
+      "missing_bins": [
+        "result.hit",
+        "result.invalidated",
+        "result.poison",
+        "dirty_count.full",
+        "data_class.ones",
+        "data_class.aa",
+        "op_x_result.read_hit",
+        "op_x_result.write_hit",
+        "op_x_result.inv_hit",
+        "seq_read_hit_after_fill.hit",
+        "seq_write_read.hit",
+        "seq_invalidate_refill.hit"
+      ],
+      "curve": [
+        [
+          0,
+          0.14666666090488434
+        ],
+        [
+          500,
+          0.746666669845581
+        ],
+        [
+          1000,
+          0.7866666913032532
+        ],
+        [
+          1500,
+          0.8133333325386047
+        ],
+        [
+          2000,
+          0.8399999737739563
+        ],
+        [
+          2500,
+          0.8399999737739563
+        ],
+        [
+          3000,
+          0.8399999737739563
+        ],
+        [
+          3500,
+          0.8399999737739563
+        ],
+        [
+          4000,
+          0.8399999737739563
+        ],
+        [
+          4500,
+          0.8399999737739563
+        ],
+        [
+          5000,
+          0.8399999737739563
+        ],
+        [
+          5500,
+          0.8399999737739563
+        ],
+        [
+          6000,
+          0.8399999737739563
+        ],
+        [
+          6500,
+          0.8399999737739563
+        ],
+        [
+          7000,
+          0.8399999737739563
+        ],
+        [
+          7500,
+          0.8399999737739563
+        ],
+        [
+          8000,
+          0.8399999737739563
+        ],
+        [
+          8500,
+          0.8399999737739563
+        ],
+        [
+          9000,
+          0.8399999737739563
+        ],
+        [
+          9500,
+          0.8399999737739563
+        ],
+        [
+          9999,
+          0.8399999737739563
+        ]
+      ],
+      "elapsed_seconds": 1.6939422190007463,
+      "predict_mean_ms": 0.0103308348,
+      "predict_p99_ms": 0.038340190000000066,
+      "neural_route": null,
+      "neural_confidence": 0.0,
+      "llm_status": null
+    }
+  ],
+  "summary": {
+    "full": {
+      "mean_coverage": 0.8299999833106995,
+      "std_coverage": 0.014529649288569011,
+      "min_coverage": 0.800000011920929,
+      "max_coverage": 0.8399999737739563,
+      "mean_auc": 0.8109147428888025
+    },
+    "random": {
+      "mean_coverage": 0.8399999737739563,
+      "std_coverage": 0.0,
+      "min_coverage": 0.8399999737739563,
+      "max_coverage": 0.8399999737739563,
+      "mean_auc": 0.8124138880209966
+    }
+  }
+}

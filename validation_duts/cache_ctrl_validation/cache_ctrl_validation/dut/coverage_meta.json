@@ -1,0 +1,28 @@
+{
+  "dut_name": "cache_ctrl_validation",
+  "version": "v1.0",
+  "total_bins": 75,
+  "coverpoints": [
+    {"name":"fsm_state","type":"basic","signal":"state","stage":"FSM","difficulty":"easy","bins":[{"name":"idle","value":0},{"name":"lookup","value":1},{"name":"writeback","value":2},{"name":"refill","value":3},{"name":"respond","value":4},{"name":"flush_scan","value":5}]},
+    {"name":"operation","type":"basic","signal":"op","stage":"REQ","difficulty":"easy","bins":[{"name":"read","value":0},{"name":"write","value":1},{"name":"invalidate","value":2},{"name":"flush","value":3}]},
+    {"name":"set_index","type":"basic","signal":"set_idx","stage":"TAG","difficulty":"easy","bins":[{"name":"set0","value":0},{"name":"set1","value":1},{"name":"set2","value":2},{"name":"set3","value":3}]},
+    {"name":"selected_way","type":"basic","signal":"way","stage":"TAG","difficulty":"medium","bins":[{"name":"way0","value":0},{"name":"way1","value":1}]},
+    {"name":"result","type":"basic","signal":"result","stage":"TAG","difficulty":"medium","bins":[{"name":"none","value":0},{"name":"hit","value":1},{"name":"miss","value":2},{"name":"evict_clean","value":3},{"name":"evict_dirty","value":4},{"name":"invalidated","value":5},{"name":"flush_dirty","value":6},{"name":"poison","value":7}]},
+    {"name":"dirty_count","type":"boundary","signal":"dirty_count","stage":"CACHE","difficulty":"medium","bins":[{"name":"none","value":0},{"name":"one","value":1},{"name":"half","value":4},{"name":"full","value":8}]},
+    {"name":"valid_count","type":"boundary","signal":"valid_count","stage":"CACHE","difficulty":"medium","bins":[{"name":"empty","value":0},{"name":"one","value":1},{"name":"half","value":4},{"name":"full","value":8}]},
+    {"name":"offset_boundary","type":"boundary","signal":"offset","stage":"REQ","difficulty":"medium","bins":[{"name":"first","value":0},{"name":"word1","value":4},{"name":"word2","value":8},{"name":"last","value":15}]},
+    {"name":"data_class","type":"boundary","signal":"data_class","stage":"REQ","difficulty":"medium","bins":[{"name":"zero","value":0},{"name":"ones","value":1},{"name":"aa","value":2},{"name":"other","value":3}]},
+    {"name":"backpressure","type":"condition","signal":"stalled","stage":"MEM","difficulty":"medium","bins":[{"name":"flowing","value":0},{"name":"stalled","value":1}]},
+    {"name":"op_x_result","type":"cross","signal":"op,result","stage":"TAG","difficulty":"hard","bins":[{"name":"read_hit","cross":[0,1]},{"name":"read_miss","cross":[0,2]},{"name":"read_clean_evict","cross":[0,3]},{"name":"read_dirty_evict","cross":[0,4]},{"name":"write_hit","cross":[1,1]},{"name":"write_miss","cross":[1,2]},{"name":"write_clean_evict","cross":[1,3]},{"name":"write_dirty_evict","cross":[1,4]},{"name":"inv_hit","cross":[2,5]},{"name":"inv_miss","cross":[2,2]},{"name":"flush_dirty","cross":[3,6]}]},
+    {"name":"set_x_way","type":"cross","signal":"set_idx,way","stage":"TAG","difficulty":"hard","bins":[{"name":"s0w0","cross":[0,0]},{"name":"s0w1","cross":[0,1]},{"name":"s1w0","cross":[1,0]},{"name":"s1w1","cross":[1,1]},{"name":"s2w0","cross":[2,0]},{"name":"s2w1","cross":[2,1]},{"name":"s3w0","cross":[3,0]},{"name":"s3w1","cross":[3,1]}]},
+    {"name":"state_x_stall","type":"cross","signal":"state,stalled","stage":"MEM","difficulty":"hard","bins":[{"name":"wb_stall","cross":[2,1]},{"name":"wb_go","cross":[2,0]},{"name":"refill_stall","cross":[3,1]},{"name":"refill_go","cross":[3,0]},{"name":"flush_stall","cross":[5,1]},{"name":"flush_go","cross":[5,0]}]},
+    {"name":"seq_cold_refill","type":"seq_hit","seq":"seq1","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_read_hit_after_fill","type":"seq_hit","seq":"seq2","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_write_read","type":"seq_hit","seq":"seq3","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_conflict_evict","type":"seq_hit","seq":"seq4","difficulty":"hardest","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_dirty_writeback","type":"seq_hit","seq":"seq5","difficulty":"hardest","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_stall_recover","type":"seq_hit","seq":"seq6","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_flush_complete","type":"seq_hit","seq":"seq7","difficulty":"hardest","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_invalidate_refill","type":"seq_hit","seq":"seq8","difficulty":"hard","bins":[{"name":"hit","value":1}]}
+  ]
+}

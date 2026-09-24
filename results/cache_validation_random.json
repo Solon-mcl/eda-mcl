@@ -1,0 +1,53 @@
+[
+  {
+    "dut": "cache_ctrl_validation",
+    "backend": "local",
+    "agent": "random",
+    "seed": 260923,
+    "steps": 2000,
+    "interval": 500,
+    "curve": [
+      [
+        0,
+        0.14666666666666667
+      ],
+      [
+        500,
+        0.7866666666666666
+      ],
+      [
+        1000,
+        0.8266666666666667
+      ],
+      [
+        1500,
+        0.8266666666666667
+      ],
+      [
+        1999,
+        0.8266666666666667
+      ]
+    ],
+    "covered_bins": 62,
+    "total_bins": 75,
+    "coverage": 0.8266666531562805,
+    "missing_bins": [
+      "result.hit",
+      "result.invalidated",
+      "result.poison",
+      "dirty_count.full",
+      "valid_count.full",
+      "data_class.ones",
+      "data_class.aa",
+      "op_x_result.read_hit",
+      "op_x_result.write_hit",
+      "op_x_result.inv_hit",
+      "seq_read_hit_after_fill.hit",
+      "seq_write_read.hit",
+      "seq_invalidate_refill.hit"
+    ],
+    "elapsed_seconds": 0.2653001749995383,
+    "predict_mean_ms": 0.008259015,
+    "predict_p99_ms": 0.03174012
+  }
+]

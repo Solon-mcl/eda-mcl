@@ -1,0 +1,84 @@
+[
+  {
+    "dut": "cache_ctrl_validation",
+    "backend": "local",
+    "agent": "full",
+    "seed": 260923,
+    "steps": 1000,
+    "interval": 100,
+    "curve": [
+      [
+        0,
+        0.14666666666666667
+      ],
+      [
+        100,
+        0.4533333333333333
+      ],
+      [
+        200,
+        0.76
+      ],
+      [
+        300,
+        0.7866666666666666
+      ],
+      [
+        400,
+        0.7866666666666666
+      ],
+      [
+        500,
+        0.8133333333333334
+      ],
+      [
+        600,
+        0.8133333333333334
+      ],
+      [
+        700,
+        0.84
+      ],
+      [
+        800,
+        0.84
+      ],
+      [
+        900,
+        0.84
+      ],
+      [
+        999,
+        0.84
+      ]
+    ],
+    "covered_bins": 63,
+    "total_bins": 75,
+    "coverage": 0.8399999737739563,
+    "missing_bins": [
+      "result.flush_dirty",
+      "result.poison",
+      "dirty_count.half",
+      "dirty_count.full",
+      "valid_count.half",
+      "valid_count.full",
+      "op_x_result.read_clean_evict",
+      "op_x_result.write_miss",
+      "op_x_result.write_dirty_evict",
+      "op_x_result.inv_miss",
+      "op_x_result.flush_dirty",
+      "state_x_stall.flush_stall"
+    ],
+    "elapsed_seconds": 0.1764642640009697,
+    "predict_mean_ms": 0.026418042000000003,
+    "predict_p99_ms": 0.26140971,
+    "neural_route": "dma",
+    "neural_confidence": 0.883008599281311,
+    "llm_status": {
+      "status": "disabled",
+      "model": "deepseek-v4-pro",
+      "latency_s": 0.0,
+      "usage": {}
+    }
+  }
+]

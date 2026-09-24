@@ -1,0 +1,112 @@
+[
+  {
+    "dut": "cache_ctrl_validation",
+    "backend": "local",
+    "agent": "full",
+    "seed": 260923,
+    "steps": 100,
+    "interval": 25,
+    "curve": [
+      [
+        0,
+        0.14666666666666667
+      ],
+      [
+        25,
+        0.14666666666666667
+      ],
+      [
+        50,
+        0.14666666666666667
+      ],
+      [
+        75,
+        0.14666666666666667
+      ],
+      [
+        99,
+        0.14666666666666667
+      ]
+    ],
+    "covered_bins": 11,
+    "total_bins": 75,
+    "coverage": 0.14666666090488434,
+    "missing_bins": [
+      "fsm_state.lookup",
+      "fsm_state.writeback",
+      "fsm_state.refill",
+      "fsm_state.respond",
+      "fsm_state.flush_scan",
+      "operation.write",
+      "operation.invalidate",
+      "operation.flush",
+      "set_index.set1",
+      "set_index.set2",
+      "set_index.set3",
+      "selected_way.way1",
+      "result.hit",
+      "result.miss",
+      "result.evict_clean",
+      "result.evict_dirty",
+      "result.invalidated",
+      "result.flush_dirty",
+      "result.poison",
+      "dirty_count.one",
+      "dirty_count.half",
+      "dirty_count.full",
+      "valid_count.one",
+      "valid_count.half",
+      "valid_count.full",
+      "offset_boundary.word1",
+      "offset_boundary.word2",
+      "offset_boundary.last",
+      "data_class.ones",
+      "data_class.aa",
+      "data_class.other",
+      "backpressure.stalled",
+      "op_x_result.read_hit",
+      "op_x_result.read_miss",
+      "op_x_result.read_clean_evict",
+      "op_x_result.read_dirty_evict",
+      "op_x_result.write_hit",
+      "op_x_result.write_miss",
+      "op_x_result.write_clean_evict",
+      "op_x_result.write_dirty_evict",
+      "op_x_result.inv_hit",
+      "op_x_result.inv_miss",
+      "op_x_result.flush_dirty",
+      "set_x_way.s0w1",
+      "set_x_way.s1w0",
+      "set_x_way.s1w1",
+      "set_x_way.s2w0",
+      "set_x_way.s2w1",
+      "set_x_way.s3w0",
+      "set_x_way.s3w1",
+      "state_x_stall.wb_stall",
+      "state_x_stall.wb_go",
+      "state_x_stall.refill_stall",
+      "state_x_stall.refill_go",
+      "state_x_stall.flush_stall",
+      "state_x_stall.flush_go",
+      "seq_cold_refill.hit",
+      "seq_read_hit_after_fill.hit",
+      "seq_write_read.hit",
+      "seq_conflict_evict.hit",
+      "seq_dirty_writeback.hit",
+      "seq_stall_recover.hit",
+      "seq_flush_complete.hit",
+      "seq_invalidate_refill.hit"
+    ],
+    "elapsed_seconds": 0.019076665999818943,
+    "predict_mean_ms": 0.022931029999999998,
+    "predict_p99_ms": 0.2894973900000006,
+    "neural_route": "dma",
+    "neural_confidence": 0.8830088376998901,
+    "llm_status": {
+      "status": "disabled",
+      "model": "deepseek-v4-pro",
+      "latency_s": 0.0,
+      "usage": {}
+    }
+  }
+]

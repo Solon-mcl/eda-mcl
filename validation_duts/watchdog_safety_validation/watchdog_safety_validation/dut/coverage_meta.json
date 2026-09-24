@@ -1,0 +1,27 @@
+{
+  "dut_name":"watchdog_safety_validation",
+  "version":"v1.0",
+  "total_bins":59,
+  "coverpoints":[
+    {"name":"fsm_state","type":"basic","signal":"state","stage":"FSM","difficulty":"easy","bins":[{"name":"disabled","value":0},{"name":"closed_window","value":1},{"name":"open_window","value":2},{"name":"pretimeout","value":3},{"name":"reset_pending","value":4},{"name":"safety_locked","value":5}]},
+    {"name":"action_result","type":"basic","signal":"result","stage":"CONTROL","difficulty":"medium","bins":[{"name":"none","value":0},{"name":"cfg_accept","value":1},{"name":"cfg_reject","value":2},{"name":"service_accept","value":3},{"name":"service_early","value":4},{"name":"service_late","value":5},{"name":"bad_key","value":6},{"name":"fault_escalate","value":7}]},
+    {"name":"counter_class","type":"boundary","signal":"counter_class","stage":"TIMER","difficulty":"medium","bins":[{"name":"zero","value":0},{"name":"before_window","value":1},{"name":"window_boundary","value":2},{"name":"near_timeout","value":3}]},
+    {"name":"fault_count","type":"boundary","signal":"fault_class","stage":"SAFETY","difficulty":"medium","bins":[{"name":"zero","value":0},{"name":"one","value":1},{"name":"two","value":2},{"name":"threshold","value":3}]},
+    {"name":"enabled","type":"condition","signal":"enabled","stage":"CONTROL","difficulty":"easy","bins":[{"name":"off","value":0},{"name":"on","value":1}]},
+    {"name":"config_lock","type":"condition","signal":"cfg_locked","stage":"CONTROL","difficulty":"medium","bins":[{"name":"unlocked","value":0},{"name":"locked","value":1}]},
+    {"name":"safety_lock","type":"condition","signal":"safety_locked","stage":"SAFETY","difficulty":"hard","bins":[{"name":"normal","value":0},{"name":"locked","value":1}]},
+    {"name":"key_phase","type":"condition","signal":"key_phase","stage":"SERVICE","difficulty":"medium","bins":[{"name":"waiting_a","value":0},{"name":"waiting_b","value":1}]},
+    {"name":"state_x_result","type":"cross","signal":"event_state,result","stage":"CONTROL","difficulty":"hard","bins":[{"name":"disabled_cfg","cross":[0,1]},{"name":"closed_cfg_reject","cross":[1,2]},{"name":"closed_early","cross":[1,4]},{"name":"open_service","cross":[2,3]},{"name":"open_bad_key","cross":[2,6]},{"name":"pretimeout_late","cross":[3,5]},{"name":"timeout_wait","cross":[4,0]},{"name":"locked_escalate","cross":[5,7]},{"name":"locked_cfg_reject","cross":[5,2]}]},
+    {"name":"counter_x_state","type":"cross","signal":"counter_class,state","stage":"TIMER","difficulty":"hard","bins":[{"name":"zero_closed","cross":[0,1]},{"name":"before_closed","cross":[1,1]},{"name":"boundary_open","cross":[2,2]},{"name":"near_pre","cross":[3,3]}]},
+    {"name":"fault_x_safety","type":"cross","signal":"fault_class,safety_locked","stage":"SAFETY","difficulty":"hard","bins":[{"name":"zero_normal","cross":[0,0]},{"name":"one_normal","cross":[1,0]},{"name":"two_normal","cross":[2,0]},{"name":"threshold_locked","cross":[3,1]}]},
+    {"name":"key_x_result","type":"cross","signal":"key_phase,result","stage":"SERVICE","difficulty":"hard","bins":[{"name":"a_latched","cross":[1,0]},{"name":"pair_accept","cross":[0,3]},{"name":"pair_late","cross":[0,5]},{"name":"bad_first","cross":[0,6]}]},
+    {"name":"seq_enable_closed","type":"seq_hit","seq":"seq1","difficulty":"medium","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_closed_to_open","type":"seq_hit","seq":"seq2","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_valid_key_pair","type":"seq_hit","seq":"seq3","difficulty":"hardest","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_early_service","type":"seq_hit","seq":"seq4","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_timeout_reset","type":"seq_hit","seq":"seq5","difficulty":"hardest","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_fault_escalation","type":"seq_hit","seq":"seq6","difficulty":"hardest","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_locked_write_reject","type":"seq_hit","seq":"seq7","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_external_reset_recovery","type":"seq_hit","seq":"seq8","difficulty":"hardest","bins":[{"name":"hit","value":1}]}
+  ]
+}

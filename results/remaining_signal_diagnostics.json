@@ -1,0 +1,259 @@
+[
+  {
+    "dut": "dma_xfer_public",
+    "raw_events": {
+      "winner_0": 38,
+      "done_class_1": 3,
+      "done_class_0": 2,
+      "done_class_2": 2,
+      "done_class_3": 2,
+      "winner_1": 100,
+      "winner_2": 98,
+      "winner_3": 98
+    },
+    "samples": [
+      {
+        "step": 1694,
+        "done_class": 1,
+        "active_ch": 0,
+        "probe_mode": 4,
+        "hold": 0
+      },
+      {
+        "step": 1712,
+        "done_class": 1,
+        "active_ch": 0,
+        "probe_mode": 5,
+        "hold": 0
+      },
+      {
+        "step": 1730,
+        "done_class": 0,
+        "active_ch": 0,
+        "probe_mode": 5,
+        "hold": 0
+      },
+      {
+        "step": 1748,
+        "done_class": 2,
+        "active_ch": 0,
+        "probe_mode": 6,
+        "hold": 0
+      },
+      {
+        "step": 2286,
+        "done_class": 3,
+        "active_ch": 0,
+        "probe_mode": 8,
+        "hold": 0
+      },
+      {
+        "step": 6464,
+        "done_class": 0,
+        "active_ch": 0,
+        "probe_mode": 16,
+        "hold": 0
+      },
+      {
+        "step": 6992,
+        "done_class": 1,
+        "active_ch": 1,
+        "probe_mode": 16,
+        "hold": 0
+      },
+      {
+        "step": 7520,
+        "done_class": 2,
+        "active_ch": 2,
+        "probe_mode": 16,
+        "hold": 0
+      },
+      {
+        "step": 8048,
+        "done_class": 3,
+        "active_ch": 3,
+        "probe_mode": 16,
+        "hold": 0
+      }
+    ],
+    "covered_bins": 92,
+    "total_bins": 92
+  },
+  {
+    "dut": "spi_master_public",
+    "raw_events": {
+      "rxu_risr_3": 5,
+      "rxu_risr_1": 30,
+      "rxu_risr_5": 52,
+      "rxu_risr_4": 2,
+      "rxu_risr_10": 1
+    },
+    "samples": [
+      {
+        "step": 0,
+        "macro": 3
+      },
+      {
+        "step": 0,
+        "ss": 1,
+        "fsm": 0,
+        "protocol": 0,
+        "busy": 0
+      },
+      {
+        "step": 17,
+        "ss": 0,
+        "fsm": 0,
+        "protocol": 0,
+        "busy": 1
+      },
+      {
+        "step": 20,
+        "ss": 1,
+        "fsm": 0,
+        "protocol": 0,
+        "busy": 0
+      },
+      {
+        "step": 559,
+        "ss": 0,
+        "fsm": 0,
+        "protocol": 0,
+        "busy": 1
+      },
+      {
+        "step": 562,
+        "ss": 1,
+        "fsm": 0,
+        "protocol": 0,
+        "busy": 0
+      },
+      {
+        "step": 1105,
+        "ss": 0,
+        "fsm": 0,
+        "protocol": 0,
+        "busy": 1
+      },
+      {
+        "step": 1108,
+        "ss": 1,
+        "fsm": 0,
+        "protocol": 0,
+        "busy": 0
+      },
+      {
+        "step": 1645,
+        "ss": 0,
+        "fsm": 0,
+        "protocol": 1,
+        "busy": 1
+      },
+      {
+        "step": 1648,
+        "ss": 1,
+        "fsm": 0,
+        "protocol": 1,
+        "busy": 0
+      },
+      {
+        "step": 2187,
+        "ss": 0,
+        "fsm": 0,
+        "protocol": 1,
+        "busy": 1
+      },
+      {
+        "step": 2190,
+        "ss": 1,
+        "fsm": 0,
+        "protocol": 1,
+        "busy": 0
+      },
+      {
+        "step": 2733,
+        "ss": 0,
+        "fsm": 0,
+        "protocol": 1,
+        "busy": 1
+      },
+      {
+        "step": 2736,
+        "ss": 1,
+        "fsm": 0,
+        "protocol": 1,
+        "busy": 0
+      },
+      {
+        "step": 3256,
+        "ss": 0,
+        "fsm": 0,
+        "protocol": 0,
+        "busy": 0
+      },
+      {
+        "step": 3273,
+        "ss": 1,
+        "fsm": 0,
+        "protocol": 2,
+        "busy": 1
+      },
+      {
+        "step": 3276,
+        "ss": 0,
+        "fsm": 0,
+        "protocol": 2,
+        "busy": 0
+      },
+      {
+        "step": 3815,
+        "ss": 1,
+        "fsm": 0,
+        "protocol": 2,
+        "busy": 1
+      },
+      {
+        "step": 3818,
+        "ss": 0,
+        "fsm": 0,
+        "protocol": 2,
+        "busy": 0
+      },
+      {
+        "step": 4361,
+        "ss": 1,
+        "fsm": 0,
+        "protocol": 2,
+        "busy": 1
+      },
+      {
+        "step": 4364,
+        "ss": 0,
+        "fsm": 0,
+        "protocol": 2,
+        "busy": 0
+      },
+      {
+        "step": 4884,
+        "ss": 1,
+        "fsm": 0,
+        "protocol": 0,
+        "busy": 0
+      },
+      {
+        "step": 5428,
+        "macro": 2
+      },
+      {
+        "step": 14764,
+        "macro": 1
+      },
+      {
+        "step": 25464,
+        "macro": 0
+      }
+    ],
+    "covered_bins": 117,
+    "total_bins": 120
+  }
+]

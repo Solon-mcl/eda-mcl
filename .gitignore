@@ -1,0 +1,26 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Simulator/compiler outputs
+**/obj_dir/
+*.vcd
+*.fst
+*.log
+
+# Large generated submission artifacts
+deliverables/*.tar
+deliverables/*.zip
+赛题镜像源/*.tar.gz
+
+# Generated duplicate of the canonical app/inference source tree
+submission_source/
+
+# Editor/OS metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,51 @@
+[
+  {
+    "dut": "cache_ctrl_validation",
+    "backend": "local",
+    "agent": "greedy",
+    "seed": 260923,
+    "steps": 700,
+    "interval": 100,
+    "curve": [
+      [
+        0,
+        0.14666666666666667
+      ],
+      [
+        100,
+        0.5066666666666667
+      ],
+      [
+        200,
+        0.64
+      ],
+      [
+        300,
+        0.72
+      ],
+      [
+        400,
+        0.88
+      ],
+      [
+        500,
+        1.0
+      ],
+      [
+        600,
+        1.0
+      ],
+      [
+        699,
+        1.0
+      ]
+    ],
+    "covered_bins": 75,
+    "total_bins": 75,
+    "coverage": 1.0,
+    "missing_bins": [],
+    "elapsed_seconds": 0.08136380799987819,
+    "predict_mean_ms": 0.00180597,
+    "predict_p99_ms": 0.002084909999999999
+  }
+]
