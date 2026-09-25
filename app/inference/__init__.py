@@ -17,6 +17,7 @@ import numpy as np
 from .neural_router import NeuralDutRouter, default_model_path
 from .coverage_controller import CoverageSetController, default_q_controller_path
 from .deepseek_planner import DeepSeekPlanner
+from .generic_planner import CoverageMacroScheduler
 from .semantic_ir import (
     DutSemanticIR,
     build_semantic_ir,
@@ -493,6 +494,10 @@ class _GenericPolicy(_QueuePolicy):
         self._last_gain_step = 0
         self._last_request = None
         self._explore_level = 0
+        self._macro_scheduler = CoverageMacroScheduler()
+        self.macro_trace = []
+        self._macro_cursor = {name: 0 for name in
+                              ("configure", "control", "temporal", "recovery")}
         self._use_memory_program = all(
             token in self.spec for token in ("read", "write", "invalidate", "flush"))
         self._use_branch_program = ("branch predictor" in self.spec and
@@ -793,6 +798,135 @@ class _GenericPolicy(_QueuePolicy):
         self._request(opcode, boundary, data, stall=(index % 7 == 0), wait=wait)
         self._tx_index += 1
 
+    def _generic_addresses(self):
+        if not self.register_address_indices:
+            return [0]
+        field = self.semantic_ir.field(self.register_address_indices[0])
+        fallback_max = min(15, field.maximum if field else 3)
+        return self.register_addresses or list(range(fallback_max + 1))
+
+    @staticmethod
+    def _boundary_value(index):
+        values = (0, 1, 2, 3, 0x7F, 0x80, 0xFF, 0xAAAA,
+                  0x5555, 0xFFFF, 0xFFFFFFFF)
+        return values[int(index) % len(values)]
+
+    def _put_register_write(self, address, value):
+        action = self._base_action()
+        for item in self.write_enable_indices:
+            action[item] = 1
+        for item in self.register_address_indices:
+            action[item] = address
+        self._write_lanes(action, self.data_lanes, value)
+        self.put(self._sanitize(action))
+        self.put(self._sanitize(self._base_action()), 2)
+
+    def _configure_macro(self):
+        cursor = self._macro_cursor["configure"]
+        if self.register_address_indices and self.write_enable_indices:
+            addresses = self._generic_addresses()
+            address = addresses[cursor % len(addresses)]
+            value = self._boundary_value(cursor // len(addresses))
+            self._put_register_write(address, value)
+            if self.read_enable_indices:
+                read = self._base_action()
+                for item in self.read_enable_indices:
+                    read[item] = 1
+                for item in self.register_address_indices:
+                    read[item] = address
+                self.put(self._sanitize(read))
+                self.put(self._sanitize(self._base_action()))
+        else:
+            value = self._boundary_value(cursor)
+            self._request(cursor & 3, value, value, wait=4)
+        self._macro_cursor["configure"] += 1
+
+    def _control_macro(self):
+        cursor = self._macro_cursor["control"]
+        controls = (self.advance_indices + self.event_indices +
+                    self.fault_indices + self.enable_indices +
+                    self.read_enable_indices + self.flush_indices)
+        if not controls:
+            self._generic_transaction()
+        else:
+            action = self._base_action()
+            selected = controls[cursor % len(controls)]
+            action[selected] = 1
+            if selected in self.read_enable_indices and self.register_address_indices:
+                addresses = self._generic_addresses()
+                for item in self.register_address_indices:
+                    action[item] = addresses[(cursor // len(controls)) % len(addresses)]
+            self._write_lanes(action, self.data_lanes,
+                              self._boundary_value(cursor))
+            self.put(self._sanitize(action), (1, 2, 4)[cursor % 3])
+            self.put(self._sanitize(self._base_action()), 2)
+        self._macro_cursor["control"] += 1
+
+    def _temporal_macro(self):
+        cursor = self._macro_cursor["temporal"]
+        durations = (1, 2, 4, 8, 16, 32)
+        duration = durations[cursor % len(durations)]
+        if self.register_address_indices and self.write_enable_indices:
+            addresses = self._generic_addresses()
+            self._put_register_write(addresses[cursor % len(addresses)],
+                                     self._boundary_value(cursor + 1))
+        self.put(self._sanitize(self._base_action()), duration)
+        controls = self.event_indices + self.advance_indices + self.enable_indices
+        if controls:
+            pulse = self._base_action()
+            pulse[controls[cursor % len(controls)]] = 1
+            self._write_lanes(pulse, self.data_lanes,
+                              self._boundary_value(cursor + duration))
+            self.put(self._sanitize(pulse))
+        if self.advance_indices:
+            run = self._base_action()
+            for item in self.advance_indices:
+                run[item] = 1
+            self.put(self._sanitize(run), duration)
+        self.put(self._sanitize(self._base_action()), 2)
+        self._macro_cursor["temporal"] += 1
+
+    def _recovery_macro(self):
+        cursor = self._macro_cursor["recovery"]
+        # First accumulate exceptional state, then apply the declared recovery
+        # mechanism and finally begin a clean episode.
+        exceptional = self.fault_indices + self.event_indices
+        has_recovery = bool(exceptional or self.flush_indices or
+                            self.reset_indices)
+        if not has_recovery:
+            self._generic_transaction()
+            self._macro_cursor["recovery"] += 1
+            return
+        if exceptional:
+            action = self._base_action()
+            action[exceptional[cursor % len(exceptional)]] = 1
+            self.put(self._sanitize(action), (1, 2, 4, 8)[cursor % 4])
+        if self.flush_indices:
+            recover = self._base_action()
+            for item in self.flush_indices:
+                recover[item] = 1
+            self.put(self._sanitize(recover), 2)
+        if self.reset_indices:
+            reset = self._base_action()
+            for item in self.reset_low_indices:
+                reset[item] = 0
+            for item in self.reset_high_indices:
+                reset[item] = 1
+            self.put(self._sanitize(reset), 2)
+        self.put(self._sanitize(self._base_action()), 3)
+        self._macro_cursor["recovery"] += 1
+
+    def _scheduled_generic_transaction(self, covered, step, max_steps):
+        macro = self._macro_scheduler.select(covered, step, max_steps)
+        self.macro_trace.append(macro)
+        builders = {
+            "configure": self._configure_macro,
+            "control": self._control_macro,
+            "temporal": self._temporal_macro,
+            "recovery": self._recovery_macro,
+        }
+        builders[macro]()
+
     def predict(self, coverage_state, step: int, max_steps: int,
                 macro_scores=None) -> np.ndarray:
         state = np.asarray(coverage_state, dtype=np.float32).reshape(-1)
@@ -813,7 +947,7 @@ class _GenericPolicy(_QueuePolicy):
             elif self._use_memory_program and self.addr_lanes and self.op_indices:
                 self._memory_transaction()
             else:
-                self._generic_transaction()
+                self._scheduled_generic_transaction(covered, step, max_steps)
         return self.take()
 
 
