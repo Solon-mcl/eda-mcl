@@ -17,4 +17,4 @@ export DEEPSEEK_TIMEOUT_S="45"
 export DEEPSEEK_MAX_TOKENS="4096"
 ```
 
-也兼容 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` 以及 OpenAI 风格的环境变量。默认不调用；仅当 `DEEPSEEK_ENABLED=1` 时启用。详细说明见 [`docs/LLM_USAGE.md`](docs/LLM_USAGE.md)。
+也兼容 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` 以及 OpenAI 风格的环境变量。默认不调用；仅当 `DEEPSEEK_ENABLED=1` 时启用。详细说明见 [`docs/CURRENT_ALGORITHM_OVERVIEW.md`](docs/CURRENT_ALGORITHM_OVERVIEW.md)。

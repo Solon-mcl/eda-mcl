@@ -11,6 +11,9 @@ from pathlib import Path
 
 import numpy as np
 
+# numpy>=2.0 renamed trapz to trapezoid; keep both working.
+_trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz")
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 sys.path.insert(0, str(ROOT / "tools"))
@@ -77,7 +80,7 @@ def run_case(name, secrets, steps, interval, kind, seed):
             if state[flat] == 0:
                 missing.append(f"{cp['name']}.{item['name']}")
             flat += 1
-    auc = float(np.trapz([p[1] for p in curve], [p[0] for p in curve]) /
+    auc = float(_trapz([p[1] for p in curve], [p[0] for p in curve]) /
                 max(1, steps - 1))
     return {
         "case": name, "agent": kind, "secrets": secrets, "steps": steps,

@@ -14,6 +14,9 @@ from pathlib import Path
 
 import numpy as np
 
+# numpy>=2.0 renamed trapz to trapezoid; keep both working.
+_trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz")
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 from inference import InferenceInterface  # noqa: E402
@@ -60,10 +63,6 @@ def robust_field_writes_enabled():
         "0", "false", "no")
 
 
-def stateful_sequence_templates_enabled():
-    return os.environ.get("EDA_STATEFUL_SEQUENCE_TEMPLATES", "0").lower() not in (
-        "0", "false", "no")
-
 
 def generic_sequence_search_enabled():
     return os.environ.get("EDA_GENERIC_SEQUENCE_SEARCH", "1").lower() not in (
@@ -78,8 +77,6 @@ def generic_trace_learning_enabled():
 def algorithm_variant(agent_kind):
     if agent_kind != "full":
         return f"baseline_{agent_kind}"
-    if stateful_sequence_templates_enabled():
-        return "m7_stateful_sequence_templates"
     if generic_sequence_search_enabled():
         return ("m8_1_trace_learning" if generic_trace_learning_enabled()
                 else "m8_generic_sequence_search")
@@ -152,7 +149,7 @@ def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
     if curve[-1][0] != steps:
         curve.append([steps, float(harness.coverage)])
     elapsed = time.perf_counter() - started
-    auc = float(np.trapz([point[1] for point in curve],
+    auc = float(_trapz([point[1] for point in curve],
                          [point[0] for point in curve]))
     normalized_auc = auc / max(1, steps)
     missing = []
@@ -189,14 +186,11 @@ def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
             "robust_field_writes": robust_field_writes_enabled(),
             "field_write_repeats": int(os.environ.get(
                 "EDA_FIELD_WRITE_REPEATS", "16")),
-            "stateful_sequence_templates": stateful_sequence_templates_enabled(),
             "generic_sequence_search": generic_sequence_search_enabled(),
             "generic_trace_learning": generic_trace_learning_enabled(),
         },
     }
     if agent_kind == "full":
-        result["neural_route"] = getattr(agent, "neural_route", None)
-        result["neural_confidence"] = float(getattr(agent, "neural_confidence", 0.0))
         result["llm_status"] = getattr(agent, "llm_status", None)
         trace = getattr(getattr(agent, "_policy", None), "macro_trace", None)
         if trace is not None:
@@ -205,20 +199,6 @@ def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
                 for value in trace
             ]
         policy = getattr(agent, "_policy", None)
-        sequence_families = [
-            name for name, enabled in (
-                ("branch", getattr(policy, "branch_sequence_interface", False)),
-                ("memory", getattr(policy, "memory_sequence_interface", False)),
-                ("watchdog", getattr(policy, "watchdog_sequence_interface", False)),
-            ) if enabled]
-        result["algorithm_parameters"]["stateful_sequence_applied"] = bool(
-            sequence_families)
-        result["algorithm_parameters"]["stateful_sequence_families"] = (
-            sequence_families)
-        result["algorithm_parameters"]["watchdog_key_a_discovered"] = (
-            getattr(policy, "_watchdog_key_a", None) is not None)
-        result["algorithm_parameters"]["watchdog_key_b_discovered"] = (
-            getattr(policy, "_watchdog_key_b", None) is not None)
         generic_search = getattr(policy, "_generic_sequence_search", None)
         result["algorithm_parameters"]["generic_sequence_candidate_count"] = (
             len(generic_search.candidates) if generic_search is not None else 0)
@@ -347,10 +327,6 @@ def main():
         "--field-write-repeats", type=int, default=None,
         help="M6 retry cycles per selector-addressed write (default: 16)")
     parser.add_argument(
-        "--stateful-sequence-templates", choices=("default", "on", "off"),
-        default="default",
-        help="enable M7 expert history/timing templates (default: off)")
-    parser.add_argument(
         "--generic-sequence-search", choices=("default", "on", "off"),
         default="default",
         help="enable M8 generic coverage-directed program search (default: on)")
@@ -395,9 +371,6 @@ def main():
         if args.field_write_repeats < 1:
             parser.error("--field-write-repeats must be >= 1")
         os.environ["EDA_FIELD_WRITE_REPEATS"] = str(args.field_write_repeats)
-    if args.stateful_sequence_templates != "default":
-        os.environ["EDA_STATEFUL_SEQUENCE_TEMPLATES"] = (
-            "1" if args.stateful_sequence_templates == "on" else "0")
     if args.generic_sequence_search != "default":
         os.environ["EDA_GENERIC_SEQUENCE_SEARCH"] = (
             "1" if args.generic_sequence_search == "on" else "0")

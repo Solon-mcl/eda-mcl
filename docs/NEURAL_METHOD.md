@@ -1,15 +1,20 @@
 # 神经网络泛化方案与真实 RTL 离线 Q 学习
 
+> **状态（2026-09-26）**：本文记录 M8 通用策略之前的混合专家架构，保留作为历史记录与
+> 实验数据出处。其中的 **DUT 路由 MLP（第 3.1 节）已随家族路由组件一并移除**，
+> 推理路径不再做任何 DUT 家族判定。当前算法的完整说明见
+> [`CURRENT_ALGORITHM_OVERVIEW.md`](CURRENT_ALGORITHM_OVERVIEW.md)。
+
 ## 1. 总体结构
 
 评测期 `predict()` 只进行前向推理，不更新权重。当前方案分为四层：
 
 1. 可选 DeepSeek-V4 在 DUT 初始化时解析 spec/covergroup，为未知 DUT 生成结构化事务计划；API 失败时自动跳过。
-2. 文本 MLP 根据 `dut_spec.md` 和 `covergroup.svh` 选择 DMA、SPI Master 或 SPI Xfer 策略族。
+2. ~~文本 MLP 根据 `dut_spec.md` 和 `covergroup.svh` 选择 DMA、SPI Master 或 SPI Xfer 策略族。~~（该家族路由 MLP 已移除，推理不再做 DUT 家族选择）
 3. Deep Sets 将数量可变、顺序不固定的覆盖 bins 编码成状态，并输出四个宏动作的 Q 值。
 4. 确定性事务解码器将 `basic / boundary / cross / temporal` 宏展开成合法的逐周期总线动作。
 
-这种分层保留协议合法性和已有覆盖下限，同时允许 LLM 处理未见过的规格语义，并由神经网络根据 coverage schema 与实时反馈改变宏执行顺序。LLM 不在逐周期路径中运行，详细约束见 `docs/LLM_USAGE.md`。
+这种分层保留协议合法性和已有覆盖下限，同时允许 LLM 处理未见过的规格语义，并由神经网络根据 coverage schema 与实时反馈改变宏执行顺序。LLM 不在逐周期路径中运行，详细约束见 [`CURRENT_ALGORITHM_OVERVIEW.md`](CURRENT_ALGORITHM_OVERVIEW.md)。
 
 ## 2. 相关工作
 
@@ -20,7 +25,7 @@
 
 ## 3. 两个神经网络
 
-### 3.1 DUT 路由 MLP
+### 3.1 DUT 路由 MLP（已移除）
 
 规格文本经稳定 signed hashing 形成 256 维 unigram/bigram 特征：
 

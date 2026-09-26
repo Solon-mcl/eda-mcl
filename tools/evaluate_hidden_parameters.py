@@ -15,6 +15,9 @@ from pathlib import Path
 
 import numpy as np
 
+# numpy>=2.0 renamed trapz to trapezoid; keep both working.
+_trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz")
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 sys.path.insert(0, str(ROOT / "tools"))
@@ -88,7 +91,7 @@ def run_case(name, secrets, steps, interval, agent_kind, seed):
         if step % interval == 0:
             curve.append([step, float(np.mean(state))])
     curve.append([steps - 1, float(np.mean(state))])
-    auc = float(np.trapz([point[1] for point in curve],
+    auc = float(_trapz([point[1] for point in curve],
                          [point[0] for point in curve]) / max(1, steps - 1))
     return {
         "case": name,
@@ -104,8 +107,6 @@ def run_case(name, secrets, steps, interval, agent_kind, seed):
         "elapsed_seconds": time.perf_counter() - started,
         "predict_mean_ms": float(np.mean(timings) / 1e6),
         "predict_p99_ms": float(np.percentile(timings, 99) / 1e6),
-        "neural_route": getattr(agent, "neural_route", None),
-        "neural_confidence": float(getattr(agent, "neural_confidence", 0.0)),
         "llm_status": getattr(agent, "llm_status", None),
     }
 

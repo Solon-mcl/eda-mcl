@@ -62,14 +62,18 @@
 - M6 对每个 selector 字段写执行默认 16 周期的有界、幂等重试，使不知道内部 busy/hold 信号的策略仍能跨越拒绝窗口，并让 RTL 配置观测稳定。该机制由接口结构触发，不读取 DUT 名称。
 - `EDA_ROBUST_FIELD_WRITES=0/1` 和 `--robust-field-writes off/on` 支持 M5/M6 消融；`--field-write-repeats` 可修改重试周期，默认 16。
 
-### M7：状态历史与认证时序序列
+### M7：状态历史与认证时序序列（已于 2026-09-26 移除）
 
 - 将此前存在但未接入提交调度的 branch/cache 状态事务生成器接入统一 `_GenericPolicy`；入口按动作字段角色和 spec 语义结构门控，不读取 DUT 名称。
 - Branch 序列覆盖 PHT 饱和与翻转、历史模式、BTB 命中/替换、调用返回栈、stall 和 flush 恢复。
 - Cache 序列覆盖重复命中、同 set 多 tag 的干净/脏替换、写后读、失效后重填、backpressure 和完整 flush，并系统扫描隐藏异常 tag。
 - Watchdog 使用覆盖反馈发现未知有序密钥：`key_phase.waiting_b` 首次命中确定 key A；每个 key B 候选均在合法窗口中与已知 A 配对，`action_result.service_accept` 首次命中确定 key B。发现后生成 early/open/pretimeout/timeout、故障升级、锁定写拒绝和外部复位恢复序列。
-- `EDA_STATEFUL_SEQUENCE_TEMPLATES=0/1` 和 `--stateful-sequence-templates off/on` 支持 M6/M7 消融。实验 JSON 记录结构门控是否实际应用、序列族以及两阶段密钥是否发现。
-- M7 依赖 branch/cache/watchdog 的已知结构，现已降级为默认关闭的离线教师和性能上界，不作为最终通用方案。
+- 其开关 `EDA_STATEFUL_SEQUENCE_TEMPLATES` / `--stateful-sequence-templates` 与结构门控、两阶段密钥记录字段已随实现一并删除。
+- 该机制依赖 branch/cache/watchdog 的已知结构，属于 DUT 家族专用知识，与“不读 DUT 名、
+  不做家族路由”的泛化目标冲突，因此整体移除，而不是仅保持默认关闭。
+- 移除后 7 个 DUT 的 5k 回归与移除前逐位一致（含 branch 66/66、cache 56/75、
+  watchdog 47/59、tlb 78/78），说明它本来就不参与默认路径决策。移除前的实现保存在
+  git 提交 `3a53a95`。
 
 ### M8：通用覆盖反馈程序搜索
 
@@ -77,7 +81,7 @@
 - 初始候选覆盖枚举重复与转移、地址关系与边界、多尺度地址扫描、stall/flush/ready 恢复、寄存器边界写、0～255 token 探测和多种 pulse 时长。产生覆盖的 token 会派生有序 token 对，成功 token 对会派生时距变体，成功程序会派生重复变体。
 - 覆盖元数据没有 sequence 标签，或动作结构无法生成上述原生候选时，M8 仍会依据寄存器读写、字段选择和请求能力构造有界兜底候选。兜底候选在覆盖深度停滞后逐个投放，每次投放后冷却 1024～4096 周期，避免抢占 M3～M6 的正常事务预算。
 - 搜索器先尝试未执行的原生候选，再按新增 bin/周期与 UCB 探索项排序；每个候选最多尝试两次。候选耗尽后自动回退 M6 调度。实验 JSON 记录候选总数、原生候选数、是否立即激活、完成程序数和新增 bin 数。
-- `EDA_GENERIC_SEQUENCE_SEARCH=0/1` 和 `--generic-sequence-search off/on` 支持 M6/M8 消融，默认开启。M7 默认关闭；显式开启 M7 时保留专家教师优先级。
+- `EDA_GENERIC_SEQUENCE_SEARCH=0/1` 和 `--generic-sequence-search off/on` 支持 M6/M8 消融，默认开启。
 
 ### M8.1：成功事务轨迹学习
 
@@ -119,9 +123,12 @@
 - 新增第四类留出 DUT `tlb_mmu_validation` 后，初始 M8.1 因未将 VPN 识别为地址通道而与 M6 同为 66/78，DUT 自带 greedy 为 78/78。语义 IR 增加 VPN、context/ASID、privilege、scope/global 和 fence/flush/root-change 角色后，M8 可生成地址重复、上下文别名以及 local/global 恢复序列。最终默认参数在 5k 达到 78/78、AUC 0.8872、最后命中周期 3021；两组隐藏参数变体也均在 5k 达到 78/78，最后命中周期分别为 3179 和 943。三组运行非法动作数均为 0。
 - M8 隐藏参数外推中，两组 branch 均为 66/66，两组 cache 均为 75/75，watchdog key `(0,1)` 为 59/59。key `(255,254)` 且 `escalation_limit=2` 的变体为 57/59；缺失的两个 bin 在该参数下不可达，因为第二次故障直接锁定。
 - `tools/run_experiments.py --secrets-json` 可接受开发用 JSON 对象或文件，只在结果中记录是否覆盖 secret，不回显参数内容；用于上述参数外推，不改变提交入口。
+- 2026-09-26 移除 M7 状态序列模板、`_SpiPolicy`/`_DmaPolicy` 旧专家与 `neural_router` 家族路由后，
+  7 个 DUT 的 5k local 回归与移除前逐位一致（覆盖率与归一化 AUC 完全相同），记录见
+  `results/m7_removal_regression_5k.json`。
 - 当前工作区未发现正式赛题 AES、温控或新的官方镜像，因此尚不能执行真实镜像接口审计。现有结果验证了 M8 对三类留出结构和参数变化的外推，但不能证明对任意新 DUT 都能满覆盖。
 
 ## 下一步
 
-1. 在真实赛题镜像可用后，优先完成接口审计和 M4/M5/M6/M7/M8 开关复验，重点比较默认 M8 与默认关闭的 M7 教师，再决定是否进入 LLM 初始化与学习排序器实验。
+1. 在真实赛题镜像可用后，优先完成接口审计和 M4/M5/M6/M8/M8.1 开关复验，再决定是否进入 LLM 初始化与学习排序器实验。
 2. 对真实镜像中仍无法由语义 IR 映射的 hardest sequence，评估 LLM 初始化和停滞重规划；只有真实未见结构消融稳定增益才默认启用。

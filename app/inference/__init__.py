@@ -118,375 +118,7 @@ class _QueuePolicy:
 
 
 # ---------------------------------------------------------------------------
-# Legacy offline teachers. These classes are retained for trace generation
-# and historical comparison. InferenceInterface never selects them.
-# The submission path starts at UniversalPolicy near the end of this file.
-# ---------------------------------------------------------------------------
-
-class _SpiPolicy(_QueuePolicy):
-    """Protocol-aware program/configure/transfer plans for both SPI DUTs."""
-
-    dims = 12
-
-    def __init__(self, master: bool, seed: int | None = None, macro_order=None):
-        super().__init__(seed)
-        self.master = master
-        self.forced_macro_order = deque(
-            int(value) for value in (macro_order or ()) if 0 <= int(value) < 4)
-        self.macro_queues = [deque() for _ in range(4)]
-        self.macro_trace = []
-        if master:
-            self.a_ctrl, self.a_ndf, self.a_en = 0x00, 0x01, 0x02
-            self.a_mwcr, self.a_ser, self.a_baud = 0x03, 0x04, 0x05
-            self.a_txftlr, self.a_dr = 0x06, 0x18
-        else:
-            self.a_ctrl, self.a_ndf, self.a_en = 0x00, 0x01, 0x02
-            self.a_mwcr, self.a_ser, self.a_baud = None, 0x03, 0x04
-            self.a_txftlr, self.a_dr = 0x05, 0x09
-        self._build_plan()
-
-    def _seal_macro(self, macro: int):
-        """Move actions accumulated since the previous seal into a macro pool."""
-        self.macro_queues[int(macro)].extend(self.queue)
-        self.queue = deque()
-
-    def _select_macro(self, scores=None):
-        available = [i for i, queue in enumerate(self.macro_queues) if queue]
-        if not available:
-            return False
-        while self.forced_macro_order and self.forced_macro_order[0] not in available:
-            self.forced_macro_order.popleft()
-        if self.forced_macro_order:
-            chosen = self.forced_macro_order.popleft()
-        elif scores is None:
-            order = (0, 3, 2, 1)
-            chosen = next(i for i in order if i in available)
-        else:
-            values = np.asarray(scores, dtype=np.float32).reshape(-1)
-            chosen = max(available, key=lambda i: float(values[i]) if i < values.size else -1e9)
-        self.queue = self.macro_queues[chosen]
-        self.macro_queues[chosen] = deque()
-        self.macro_trace.append(chosen)
-        return True
-
-    @staticmethod
-    def _a(we=0, addr=0, data=0, re=0, rxd=0, ss=1, rst=1):
-        return [we, addr, data, re, rxd, ss, rst, 0, 0, 0, 0, 0]
-
-    def _ctrl(self, proto, tmod, dfs, srl=False, toggle=False, cfs=8):
-        if self.master:
-            # This DUT exposes the encoded DFS/CFS fields directly in its
-            # coverage metadata (unlike spi_xfer, which exposes decoded bits).
-            raw_dfs = max(0, int(dfs)) & 0x1F
-            frf, scph = (0, proto) if proto in (0, 1) else ((1, 0) if proto == 2 else (2, 0))
-            return (raw_dfs | (frf << 6) | (scph << 8) | (int(tmod) << 10) |
-                    (int(bool(srl)) << 13) | (int(bool(toggle)) << 14) |
-                    ((max(0, int(cfs)) & 0xF) << 16))
-        raw_dfs = max(0, int(dfs) - 1) & 0x1F
-        frf, scph = (0, proto) if proto in (0, 1) else (1, 0)
-        return (raw_dfs | (frf << 5) | (scph << 7) | (int(tmod) << 9) |
-                (int(bool(srl)) << 11) | (int(bool(toggle)) << 12))
-
-    def _scenario(self, *, proto=0, tmod=3, dfs=8, baud=2, frames=2,
-                  data=0x55, rxd=0, srl=True, toggle=False, cfs=8,
-                  mwcr=0, ser=1, abort=False, refill=False, txftlr=0,
-                  reset=True, initial_pushes=None, abort_after=None):
-        ss = 0 if proto == 2 else 1
-        # Resetting the DUT does not reset functional coverage, and makes each
-        # transaction independent of FIFO/register residue from the last one.
-        if reset:
-            self.put(self._a(ss=ss, rst=0), 2)
-            self.put(self._a(ss=ss), 1)
-        self.put(self._a(1, self.a_en, 0, ss=ss))
-        self.put(self._a(1, self.a_ctrl,
-                         self._ctrl(proto, tmod, dfs, srl, toggle, cfs), ss=ss))
-        self.put(self._a(1, self.a_ndf, max(0, frames - 1), ss=ss))
-        if self.a_mwcr is not None:
-            self.put(self._a(1, self.a_mwcr, mwcr, ss=ss))
-        self.put(self._a(1, self.a_ser, ser, ss=ss))
-        self.put(self._a(1, self.a_baud, baud, ss=ss))
-        self.put(self._a(1, self.a_txftlr, txftlr, ss=ss))
-        pushes = (min(8, max(1, frames)) if initial_pushes is None
-                  else min(8, max(1, int(initial_pushes))))
-        # The full SPI master clears both FIFOs on SSIENR's rising edge.
-        if self.master:
-            self.put(self._a(1, self.a_en, 1, rxd=rxd, ss=ss))
-        for i in range(pushes):
-            word = data if i % 2 == 0 else (0xAA if data == 0x55 else data)
-            self.put(self._a(1, self.a_dr, word, rxd=rxd, ss=ss))
-        if not self.master:
-            self.put(self._a(1, self.a_en, 1, rxd=rxd, ss=ss))
-
-        # Allow the transfer to become active before any deliberate abort.
-        warm = (max(1, int(abort_after)) if abort_after is not None else
-                max(12, min(160, int(baud) * max(4, int(dfs)))))
-        self.put(self._a(rxd=rxd, ss=ss), warm)
-        if abort:
-            self.put(self._a(rxd=rxd, ss=1 - ss), 3)
-            # A subsequent scenario performs the required recovery sequence.
-            # The master's abort flag is short-lived, so do not hide it behind
-            # a long post-abort idle. spi_xfer retains the established timing.
-            if self.master:
-                return
-        elif refill:
-            # Refill while busy after the initial FIFO has drained.
-            for _ in range(4):
-                self.put(self._a(1, self.a_dr, data, rxd=rxd, ss=ss), 1)
-                self.put(self._a(rxd=rxd, ss=ss), max(4, baud * 3))
-        wait = min(4200, max(100, (frames + 2) * max(4, dfs) * max(2, baud) * 3))
-        self.put(self._a(rxd=rxd, ss=ss), wait)
-        # Pop a few RX words, exercising the read path without starving every
-        # scenario before RX half/full boundary samples are collected.
-        for _ in range(min(8, frames)):
-            self.put(self._a(addr=self.a_dr, re=1, rxd=rxd, ss=ss))
-
-    def _build_plan(self):
-        # Earliest transactions intentionally combine the most valuable cross
-        # and sequential bins, improving AUC as well as final coverage.
-        self._scenario(proto=0, tmod=3, dfs=8, baud=2, frames=8,
-                       data=0x55, srl=True, toggle=True, ser=1)
-        self._scenario(proto=1, tmod=3, dfs=32, baud=2, frames=8,
-                       data=0xAA, srl=True, toggle=True, ser=2)
-        self._scenario(proto=2, tmod=3, dfs=16, baud=2, frames=8,
-                       data=0xFF, srl=False, rxd=1, toggle=True, ser=4,
-                       cfs=8, mwcr=0)
-        if not self.master:
-            # SPI0 with the ordinary divider traverses HOLD_MASK (baud2 uses
-            # a dedicated fast path); baud=1 is a separately defined boundary.
-            self._scenario(proto=0, tmod=3, dfs=8, baud=8, frames=3,
-                           data=0x55, srl=True)
-            self._scenario(proto=0, tmod=2, dfs=8, baud=1, frames=2,
-                           data=0xAA, srl=True)
-        self._seal_macro(0)  # basic protocol bring-up and high-yield transfers
-
-        # Abort then recover with a multi-frame transfer (seq_a family).
-        for proto in (0, 1, 2):
-            abort_offsets = (2, 4, 8) if self.master else (None,)
-            for abort_after in abort_offsets:
-                self._scenario(proto=proto, tmod=3, dfs=8, baud=2, frames=4,
-                               data=0x55, abort=True,
-                               abort_after=abort_after)
-                self._scenario(proto=proto, tmod=3, dfs=8, baud=2, frames=8,
-                               data=0x55, reset=False)
-        self._scenario(proto=0, tmod=2, dfs=8, baud=2, frames=8,
-                       data=0x55, refill=True, initial_pushes=1)
-        self._seal_macro(3)  # multi-cycle abort/recovery/refill sequences
-
-        # Cover all TMOD/protocol combinations requested by the public metas.
-        for proto in ((0, 1, 2, 3) if self.master else (0, 1, 2)):
-            for tmod in range(4):
-                self._scenario(proto=proto, tmod=tmod, dfs=8, baud=2,
-                               frames=4, data=0x55, srl=True,
-                               mwcr=(tmod & 3), cfs=8, ser=1 << (tmod & 3))
-        self._seal_macro(2)  # protocol x mode crosses
-
-        # Boundary sweeps.  Raw sub-minimum fields probe hidden DFS/CFS clamps.
-        for dfs in (1, 4, 8, 16, 24, 31, 32):
-            self._scenario(proto=0, tmod=3, dfs=dfs, baud=2,
-                           frames=3, data=0xFF, srl=False, rxd=1)
-        for baud in ((2, 8, 16) if self.master else (1, 2, 3, 8)):
-            self._scenario(proto=1, tmod=3, dfs=8, baud=baud,
-                           frames=3, data=0, srl=False, rxd=0)
-
-        if self.master:
-            # Keep TX non-empty while reading an empty RX FIFO. This isolates
-            # RX-underflow (RISR=4) from the concurrent TX-empty interrupt.
-            self.put(self._a(ss=1, rst=0), 2)
-            self.put(self._a(ss=1))
-            self.put(self._a(1, self.a_en, 1, ss=1))
-            self.put(self._a(1, self.a_dr, 0x55, ss=1))
-            self.put(self._a(ss=1), 2)
-            self.put(self._a(addr=self.a_dr, re=1, ss=1), 2)
-            self.put(self._a(ss=1), 2)
-            self._scenario(proto=0, tmod=3, dfs=3, baud=2, frames=2,
-                           data=0x55, srl=True)
-            self._scenario(proto=0, tmod=3, dfs=7, baud=2, frames=2,
-                           data=0xFF, rxd=1, srl=False)
-            # Full FIFO is sampled only after the eighth push.  A threshold of
-            # seven prevents the engine from consuming earlier entries.
-            self._scenario(proto=0, tmod=3, dfs=8, baud=2, frames=8,
-                           data=0x55, txftlr=7)
-            # Explicit metadata boundary/cross targets, placed before the more
-            # expensive Microwire sweep for better convergence AUC.
-            for proto, dfs in ((0, 4), (0, 16), (2, 8), (3, 8)):
-                self._scenario(proto=proto, tmod=3, dfs=dfs, baud=2,
-                               frames=4, data=0x55, srl=True, cfs=8)
-            for frames in (1, 16):
-                self._scenario(proto=0, tmod=2, dfs=8, baud=2,
-                               frames=frames, data=0xAA)
-            self._seal_macro(1)  # numeric/FIFO/DFS/NDF boundaries
-            for cfs in (1, 8, 12, 15):
-                for mwcr in (0, 2, 7):
-                    self._scenario(proto=3, tmod=3, dfs=8, baud=2,
-                                   frames=3, data=0xAA, rxd=1, srl=True,
-                                   cfs=cfs, mwcr=mwcr)
-            # Reset TX threshold and all four slave-select bins.
-            for ser in (1, 2, 4, 8):
-                self._scenario(proto=0, tmod=2, dfs=8, baud=2,
-                               frames=2, data=0x55, ser=ser, txftlr=1)
-            self._seal_macro(2)
-        else:
-            self._seal_macro(1)
-
-    def predict(self, coverage_state, step: int, max_steps: int,
-                macro_scores=None) -> np.ndarray:
-        if not self.queue:
-            self._select_macro(macro_scores)
-        if self.queue:
-            return self.take()
-        # Safe low-overhead fallback: keep DUT running and vary RX data.  This
-        # is preferable to random resets if an evaluator grants extra cycles.
-        return np.asarray(self._a(rxd=(step >> 3) & 1, ss=1), dtype=np.float32)
-
-
-class _DmaPolicy(_QueuePolicy):
-    dims = 15
-
-    def __init__(self, seed: int | None = None, done_indices=None):
-        super().__init__(seed)
-        self.done_indices = np.asarray(done_indices or (), dtype=np.int64)
-        self.mode_to_class: dict[int, int] = {}
-        self._last_done = np.zeros(4, dtype=np.float32)
-        self._probe_mode = 0
-        self._pending_mode = None
-        self._probe_waiting = False
-        self._post_built = False
-        self._build_prefix()
-
-    @staticmethod
-    def _a(ch=0, wr=0, field=0, value=0, start=0):
-        value = int(value) & 0xFFFFFFFF
-        out = [ch, wr, field]
-        out += [(value >> (8 * i)) & 0xFF for i in range(4)]
-        out += [start, 0, 0, 0, 0, 0, 0, 0]
-        return out
-
-    def _write_task(self, ch, saddr, daddr, length, mode, burst,
-                    wait=0, start=True):
-        packed = ((int(length) & 0xFFFF) | ((int(mode) & 0x1F) << 16) |
-                  ((int(burst) & 7) << 21))
-        self.put(self._a(ch, 1, 0, saddr))
-        self.put(self._a(ch, 1, 1, daddr))
-        self.put(self._a(ch, 1, 2, packed))
-        if start:
-            self.put(self._a(ch, start=1))
-            self.put(self._a(ch, start=0))
-        if wait:
-            self.put(self._a(), wait)
-
-    def _build_prefix(self):
-        self.put(self._a(), 4)  # stable idle sequence
-        # Sample boundaries without starting the very long upper-bound lengths;
-        # otherwise a channel would remain busy for the rest of the budget.
-        addrs = (0, 1, 0xFFFFFFFE, 0xFFFFFFFF)
-        lengths = (0, 1, 0xFFFE, 0xFFFF)
-        for ch in range(4):
-            for i in range(8):
-                self._write_task(ch, addrs[i % 4], addrs[(i + 1) % 4],
-                                 lengths[i % 4], i | (8 if i & 1 else 0), i,
-                                 start=False)
-        # Real transfers are deferred until after hidden-mode discovery. A
-        # successful mode can hold the interface for up to 512 cycles, making
-        # a short fixed wait corrupt every configuration that follows it.
-
-    def _probe_next(self):
-        # RTL stores only four mode bits. Probing 0..15 is exhaustive and
-        # avoids wasting half the budget on aliases 16..31.
-        if self._probe_mode >= 16:
-            return False
-        mode = self._probe_mode
-        self._probe_mode += 1
-        self._pending_mode = mode
-        if not self.mode_to_class:
-            # Until the first completion event exists, create one normally.
-            self._write_task(0, 0, 0, 1, mode, mode & 7, wait=520)
-        else:
-            # The RTL's completion latch remains asserted. Repeating the one
-            # relevant register write guarantees that a narrow post-hold
-            # release window accepts the next candidate mode.
-            packed = (1 | ((mode & 0xF) << 16) | ((mode & 7) << 21))
-            self.put(self._a(0, 1, 2, packed), 520)
-        self._probe_waiting = True
-        return True
-
-    def _build_post_probe(self):
-        self._post_built = True
-        discovered = set(self.mode_to_class)
-        safe_mode = next((mode for mode in range(16)
-                          if mode not in discovered), 0)
-        # Replay each discovered done class on its matching channel.  This
-        # targets done×channel and direction×done crosses.
-        for cls in range(4):
-            modes = [m for m, c in self.mode_to_class.items() if c == cls]
-            mode = modes[0] if modes else cls
-            direction_mode = ((safe_mode & 7) |
-                              (8 if cls in (2, 3) else 0))
-            if cls:
-                # Keep the target channel active while channel zero's sticky
-                # completion mode is changed. The arbiter observation has
-                # priority over the config cookie in that cycle, preserving
-                # both active_ch and the requested MEM/IO direction.
-                self._write_task(cls, 0, 0, 64, direction_mode,
-                                 (0, 1, 7, 0)[cls], wait=2)
-            # With active_ch/arb_winner set to the target channel, changing
-            # channel zero's sticky completion mode emits the desired class.
-            packed = (1 | ((mode & 0xF) << 16) |
-                      (((0, 1, 7, 0)[cls] & 7) << 21))
-            self.put(self._a(0, 1, 2, packed))
-            # Restore a non-matching mode as soon as hold releases, preventing
-            # the sticky completion event from retriggering forever.
-            safe_packed = 1 | ((safe_mode & 0xF) << 16)
-            self.put(self._a(0, 1, 2, safe_packed), 520)
-
-        # Non-holding short transfers cover completion, directions and bursts.
-        for ch in range(4):
-            for burst in range(8):
-                mode = (safe_mode & 7) | (8 if burst & 1 else 0)
-                if mode in discovered:
-                    mode = safe_mode
-                self._write_task(ch, burst, 7 - burst, 1 if burst == 0 else 4,
-                                 mode, burst, wait=16)
-
-        # Exactly two active cycles target the bounded quick-done sequence.
-        self._write_task(1, 0, 0, 2, safe_mode, 0, wait=16)
-
-        # Simultaneous pending channels target conflicts and channel switches.
-        for ch in range(4):
-            self._write_task(ch, 0, 0, 5, safe_mode, ch, start=False)
-        for ch in range(4):
-            self.put(self._a(ch, start=1))
-            self.put(self._a(ch, start=0))
-        self.put(self._a(), 100)
-
-    def predict(self, coverage_state, step: int, max_steps: int,
-                macro_scores=None) -> np.ndarray:
-        state = np.asarray(coverage_state, dtype=np.float32).reshape(-1)
-        if (self.done_indices.size and
-                int(np.max(self.done_indices, initial=-1)) < state.size):
-            now = state[self.done_indices]
-            newly = np.flatnonzero(now > self._last_done)
-            if (newly.size and not self._post_built and
-                    self._pending_mode is not None):
-                self.mode_to_class.setdefault(self._pending_mode,
-                                              int(newly[0]))
-                # Advance immediately rather than spending the rest of the
-                # conservative 520-cycle timeout on a mode already identified.
-                self.queue.clear()
-            self._last_done = now.copy()
-
-        if not self.queue:
-            self._probe_waiting = False
-            if self._probe_next():
-                pass
-            elif not self._post_built:
-                self._build_post_probe()
-            else:
-                return np.asarray(self._a(), dtype=np.float32)
-        return self.take()
-
-
-# ---------------------------------------------------------------------------
-# Active cumulative submission policy: M1/M2/M3, with optional M3b candidates.
+# Active submission policy: schema-driven, coverage-directed transaction search.
 # ---------------------------------------------------------------------------
 
 class _GenericPolicy(_QueuePolicy):
@@ -558,9 +190,6 @@ class _GenericPolicy(_QueuePolicy):
         self.field_write_repeats = max(1, int(os.environ.get(
             "EDA_FIELD_WRITE_REPEATS", "16")))
         self._field_transaction_cursor = 0
-        self.stateful_sequence_templates = os.environ.get(
-            "EDA_STATEFUL_SEQUENCE_TEMPLATES", "0").lower() not in (
-                "0", "false", "no")
         self.generic_sequence_search_enabled = os.environ.get(
             "EDA_GENERIC_SEQUENCE_SEARCH", "1").lower() not in (
                 "0", "false", "no")
@@ -620,30 +249,9 @@ class _GenericPolicy(_QueuePolicy):
         self.pc_lanes = self._lane_indices((r"^p(\d+)$", r"^pc_?(\d+)$"))
         self.target_lanes = self._lane_indices((r"^t(\d+)$",
                                                r"^target_?(\d+)$"))
-        self.branch_sequence_interface = bool(
-            self.stateful_sequence_templates and self.valid_indices and
-            self.kind_indices and self.taken_indices and self.pc_lanes and
-            self.target_lanes)
-        self.memory_sequence_interface = bool(
-            self.stateful_sequence_templates and self.valid_indices and
-            self.op_indices and self.addr_lanes and self.data_lanes and
-            self.ready_indices and not self.register_address_indices)
-        self.watchdog_sequence_interface = bool(
-            self.stateful_sequence_templates and self.write_enable_indices and
-            self.register_address_indices and self.advance_indices and
-            self.event_indices and self.fault_indices and self.reset_indices and
-            self.data_lanes and all(token in self.spec for token in
-                                    ("window", "timeout", "service")))
         self._target_index = {
             (item.coverpoint, item.bin_name): int(item.index)
             for item in self.coverage_targets}
-        self._watchdog_key_a = None
-        self._watchdog_key_b = None
-        self._watchdog_a_cursor = 0
-        self._watchdog_b_cursor = 0
-        self._watchdog_campaign_cursor = 0
-        self._watchdog_last_probe = None
-        self._watchdog_pending_probe = None
         self.field_selected_interface = bool(
             self.field_transaction_templates and
             self.instance_select_indices and self.register_address_indices and
@@ -680,11 +288,9 @@ class _GenericPolicy(_QueuePolicy):
         self._generic_trace_successes = 0
         self._generic_trace_bootstrap_gains = 0
         self._generic_trace_outcome_snapshot = {}
-        tag_match = re.search(r"tag\s*=\s*addr\s*\[[^:\]]+:(\d+)\]", self.spec)
-        self.tag_shift = int(tag_match.group(1)) if tag_match else 6
 
         # Functional coverage persists across reset. Begin from a known DUT
-        # state, then keep active-low resets deasserted for stateful sequences.
+        # state, then keep active-low resets deasserted.
         if self.reset_indices:
             reset = self._base_action()
             for index in self.reset_low_indices:
@@ -822,23 +428,6 @@ class _GenericPolicy(_QueuePolicy):
                 blocked[index] = 0
             self.put(blocked, 3)
         self.put(self._sanitize(idle), wait)
-
-    def _branch_request(self, kind, pc, target, taken, stall=0, flush=0,
-                        cycles=1):
-        action = self._base_action()
-        for index in self.valid_indices:
-            action[index] = 1
-        for index in self.kind_indices:
-            action[index] = int(kind)
-        for index in self.taken_indices:
-            action[index] = int(bool(taken))
-        for index in self.stall_indices:
-            action[index] = int(bool(stall))
-        for index in self.flush_indices:
-            action[index] = int(bool(flush))
-        self._write_lanes(action, self.pc_lanes, pc)
-        self._write_lanes(action, self.target_lanes, target)
-        self.put(action, cycles)
 
     def _program_step(self, assignments=None, data=None, address=None,
                       valid=False, cycles=1):
@@ -1726,243 +1315,6 @@ class _GenericPolicy(_QueuePolicy):
             sequence_family=candidate.metadata.get("family", "generic"))
         return True
 
-    def _branch_transaction(self):
-        """Stateful branch stream derived from branch-spec field semantics."""
-        phase = self._tx_index % 256
-        epoch = self._tx_index // 256
-        base_pc = (epoch * 0x400) & 0xFFFFFFFF
-
-        if phase == 0:
-            # Cold return covers the empty-RAS / BTB-miss behavior before any
-            # call has populated either structure.
-            self._branch_request(3, base_pc + 0xF000, base_pc + 0xF004, 1)
-        elif phase < 24:
-            # Drive global history to ones, then saturate a stable PHT entry.
-            self._branch_request(0, base_pc, base_pc + 0x100, 1)
-        elif phase < 48:
-            # Drive history to zero and train the opposite saturation state.
-            self._branch_request(0, base_pc + 4, base_pc + 0x104, 0)
-        elif phase < 80:
-            # Alternating outcomes exercise mixed histories and PHT aliasing.
-            offset = ((phase - 48) % 8) * 4
-            self._branch_request(0, base_pc + offset,
-                                 base_pc + 0x200 + offset, phase & 1)
-        elif phase < 112:
-            # Repeating each PC/target pair turns the first BTB miss into a hit;
-            # several strides create full-set replacement under hidden salts.
-            pair = (phase - 80) // 2
-            pc = base_pc + 0x1000 + (pair % 8) * 0x40
-            self._branch_request(1, pc, pc + 0x180, 1)
-        elif phase < 144:
-            # Calls are also repeated to cover call BTB miss/hit and fill RAS.
-            pair = (phase - 112) // 2
-            pc = base_pc + 0x2000 + (pair % 10) * 4
-            self._branch_request(2, pc, pc + 0x300, 1)
-        elif phase < 176:
-            # Direct call/return pairs: returns resolve to the pushed PC+4.
-            pair = (phase - 144) // 2
-            call_pc = base_pc + 0x3000 + (pair % 8) * 4
-            if phase & 1:
-                self._branch_request(3, call_pc + 0x80, call_pc + 4, 1)
-            else:
-                self._branch_request(2, call_pc, call_pc + 0x80, 1)
-        elif phase < 188:
-            # More calls than the maximum documented depth force overflow.
-            pc = base_pc + 0x4000 + (phase - 176) * 4
-            self._branch_request(2, pc, pc + 0x100, 1)
-        elif phase < 200:
-            self._branch_request(3, base_pc + 0x5000,
-                                 base_pc + 0x4000 + 4, 1)
-        elif phase < 216:
-            # Ignored stalled branch immediately followed by its recovery.
-            pc = base_pc + 0x6000 + ((phase - 200) // 2) * 4
-            self._branch_request(0, pc, pc + 0x40, phase & 1,
-                                 stall=1 if phase % 2 == 0 else 0)
-        elif phase < 232:
-            pc = base_pc + 0x7000 + (phase - 216) * 4
-            self._branch_request(0, pc, pc + 0x40, phase & 1,
-                                 flush=1 if phase % 2 == 0 else 0)
-        else:
-            # Broad systematic tail for target mismatches and index salts.
-            pc = base_pc + ((phase - 232) * 0x44)
-            target = base_pc + 0x8000 + ((phase * 0x9E) & 0xFFF)
-            self._branch_request(phase & 3, pc, target, (phase >> 1) & 1)
-        self._tx_index += 1
-
-    def _watchdog_reset(self):
-        action = self._base_action()
-        for index in self.reset_low_indices:
-            action[index] = 0
-        for index in self.reset_high_indices:
-            action[index] = 1
-        self.put(self._sanitize(action))
-        self.put(self._sanitize(self._base_action()))
-
-    def _watchdog_write(self, address, value):
-        action = self._base_action()
-        for index in self.write_enable_indices:
-            action[index] = 1
-        for index in self.register_address_indices:
-            action[index] = int(address)
-        self._write_data(action, value)
-        self.put(self._sanitize(action))
-        self.put(self._sanitize(self._base_action()))
-
-    def _watchdog_pulse(self, indices, value=0, cycles=1):
-        action = self._base_action()
-        for index in indices:
-            action[index] = 1
-        self._write_data(action, value)
-        self.put(self._sanitize(action), cycles)
-
-    def _observe_watchdog_discovery(self, state):
-        if not self.watchdog_sequence_interface or self._watchdog_last_probe is None:
-            return
-        kind, value = self._watchdog_last_probe
-        if kind == "a":
-            index = self._target_index.get(("key_phase", "waiting_b"))
-            if index is not None and index < state.size and state[index] > 0.5:
-                self._watchdog_key_a = int(value)
-                self.queue.clear()
-        elif kind == "b":
-            index = self._target_index.get(("action_result", "service_accept"))
-            if index is not None and index < state.size and state[index] > 0.5:
-                self._watchdog_key_b = int(value)
-                self.queue.clear()
-        self._watchdog_last_probe = None
-
-    def _watchdog_configure(self, lock=False):
-        self._watchdog_write(1, 2)
-        self._watchdog_write(2, 6)
-        self._watchdog_write(0, 3 if lock else 1)
-
-    def _watchdog_transaction(self):
-        """Discover ordered keys from coverage, then exercise timed service."""
-        if self._watchdog_key_a is None:
-            candidate = self._watchdog_a_cursor & 0xFF
-            self._watchdog_a_cursor += 1
-            self._watchdog_reset()
-            self._watchdog_pulse(self.event_indices, candidate)
-            self._watchdog_pending_probe = ("a", candidate)
-            return
-        if self._watchdog_key_b is None:
-            candidate = self._watchdog_b_cursor & 0xFF
-            self._watchdog_b_cursor += 1
-            self._watchdog_reset()
-            self._watchdog_configure()
-            self._watchdog_pulse(self.advance_indices, cycles=2)
-            self._watchdog_pulse(self.event_indices, self._watchdog_key_a)
-            self._watchdog_pulse(self.event_indices, candidate)
-            self._watchdog_pending_probe = ("b", candidate)
-            return
-
-        phase = self._watchdog_campaign_cursor % 6
-        self._watchdog_campaign_cursor += 1
-        self._watchdog_reset()
-        if phase == 0:
-            # Legal open-window authentication.
-            self._watchdog_configure()
-            self._watchdog_pulse(self.advance_indices, cycles=2)
-            self._watchdog_pulse(self.event_indices, self._watchdog_key_a)
-            self._watchdog_pulse(self.event_indices, self._watchdog_key_b)
-        elif phase == 1:
-            # Authenticated pair in CLOSED_WINDOW produces the early class.
-            self._watchdog_configure()
-            self._watchdog_pulse(self.event_indices, self._watchdog_key_a)
-            self._watchdog_pulse(self.event_indices, self._watchdog_key_b)
-        elif phase == 2:
-            # TIMEOUT-2 enters PRETIMEOUT; a valid pair is classified late.
-            self._watchdog_configure()
-            self._watchdog_pulse(self.advance_indices, cycles=4)
-            self._watchdog_pulse(self.event_indices, self._watchdog_key_a)
-            self._watchdog_pulse(self.event_indices, self._watchdog_key_b)
-        elif phase == 3:
-            # Advance through timeout and expose RESET_PENDING until it clears.
-            self._watchdog_configure()
-            self._watchdog_pulse(self.advance_indices, cycles=6)
-            self.put(self._sanitize(self._base_action()), 8)
-        elif phase == 4:
-            # Escalate beyond the documented maximum, reject a locked write,
-            # then recover through the declared external reset.
-            self._watchdog_configure()
-            self._watchdog_pulse(self.fault_indices, cycles=5)
-            self._watchdog_write(1, 3)
-            self._watchdog_reset()
-        else:
-            # Permanent configuration lock and a rejected follow-up write.
-            self._watchdog_configure(lock=True)
-            self._watchdog_write(1, 4)
-
-    def _next_stateful_sequence(self):
-        if self.branch_sequence_interface:
-            self._branch_transaction()
-            kind = "branch"
-        elif self.memory_sequence_interface:
-            self._memory_transaction()
-            kind = "memory"
-        elif self.watchdog_sequence_interface:
-            self._watchdog_transaction()
-            kind = "watchdog"
-        else:
-            return False
-        self._macro_scheduler.attach_context(
-            stateful_sequence=True, sequence_family=kind)
-        return True
-
-    def _memory_transaction(self):
-        """Generate spec-derived memory transactions and stateful replays."""
-        index = self._tx_index
-        if index > 0 and index % 128 == 127:
-            # Flush is deliberately infrequent: stateful structures need time
-            # to reach half/full and dirty boundaries before being cleared.
-            self._request(3, 0, 0, stall=True, wait=96)
-            self._tx_index += 1
-            return
-        group = index // 10
-        slot = index % 10
-        set_offset = (group % 4) << 4
-        tag = group // 4
-        base = (tag << self.tag_shift) | set_offset
-        boundary = (0, 4, 8, 15)[group % 4]
-        address = base | boundary
-        data_values = (0, 0xFFFFFFFF, 0xAAAAAAAA, 0x55555555,
-                       0x12345678)
-        data = data_values[group % len(data_values)]
-        fill_op = 0 if group % 8 == 7 else 1
-
-        # Values are derived from the opcode descriptions in the supplied
-        # spec: read=0, write=1, invalidate=2, flush=3. Repeated addresses and
-        # same-set tag strides exercise persistent and replacement behavior.
-        tag1 = address + (1 << self.tag_shift)
-        tag2 = address + (2 << self.tag_shift)
-        tag3 = address + (3 << self.tag_shift)
-        if group == 0:
-            tail7 = (2, tag3, data, False, 32)
-            tail8 = (0, tag3, data, False, 32)
-        elif group == 1:
-            tail7 = (2, address + (7 << self.tag_shift), data, False, 32)
-            tail8 = (1, tag3, data, False, 32)
-        else:
-            tail7 = (0, tag2, data, False, 32)
-            tail8 = (1, tag3, data, False, 32)
-        # The final slot scans tag values monotonically. It is useful for any
-        # hidden exceptional-tag class while remaining bounded and deterministic.
-        probe_address = (group << self.tag_shift) | set_offset
-        sequence = (
-            (0, address, data, False, 32),
-            (0, address, data, False, 32),
-            (fill_op, address, data, False, 32),
-            (0, address, data, False, 32),
-            (0, tag1, data, False, 32),
-            (fill_op, tag2, data, True, 40),
-            (fill_op, tag3, data, True, 40),
-            tail7,
-            tail8,
-            (1, probe_address, data, False, 32),
-        )
-        self._request(*sequence[slot])
-        self._tx_index += 1
-
     def _generic_transaction(self):
         if (getattr(self, "field_selected_interface", False) and
                 self._next_field_selected_transaction()):
@@ -2509,14 +1861,6 @@ class _GenericPolicy(_QueuePolicy):
                 -self.coverage_dependency_graph.target_confidence(target.index),
                 target.index))
         cursor = self._macro_cursor.get(macro, 0)
-        if self._next_stateful_sequence():
-            self._macro_cursor[macro] = cursor + 1
-            self._macro_scheduler.attach_plan([
-                {"action": action.astype(float).tolist(), "cycles": int(cycles)}
-                for action, cycles in self.queue
-            ])
-            self._active_target = None
-            return
         if (self.generic_sequence_search_enabled and
                 self._next_generic_sequence(step, max_steps)):
             self._macro_cursor[macro] = cursor + 1
@@ -2568,7 +1912,6 @@ class _GenericPolicy(_QueuePolicy):
     def predict(self, coverage_state, step: int, max_steps: int,
                 macro_scores=None) -> np.ndarray:
         state = np.asarray(coverage_state, dtype=np.float32).reshape(-1)
-        self._observe_watchdog_discovery(state)
         covered = int(np.sum(state))
         covered_bins = set(np.flatnonzero(state > 0.5).astype(int).tolist())
         if covered > self._last_covered:
@@ -2599,9 +1942,6 @@ class _GenericPolicy(_QueuePolicy):
                 covered, covered_bins, step, max_steps, missing_targets,
                 target_weights)
         action = self.take()
-        if self._watchdog_pending_probe is not None and not self.queue:
-            self._watchdog_last_probe = self._watchdog_pending_probe
-            self._watchdog_pending_probe = None
         return action
 
 
@@ -2628,9 +1968,6 @@ class _LocalInferenceInterface:
         self._coverage_controller = CoverageSetController(
             controller_path or default_q_controller_path(), covergroup_path)
         self._macro_scores_cache = np.zeros(4, dtype=np.float32)
-        self.neural_route = "universal"
-        self.neural_confidence = 1.0
-        self.neural_probabilities = np.ones(1, dtype=np.float32)
         self.semantic_ir = build_semantic_ir(spec)
         self.coverage_targets = load_coverage_targets(covergroup_path)
         action_fields = [item.name for item in self.semantic_ir.fields]

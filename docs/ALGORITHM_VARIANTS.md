@@ -13,9 +13,8 @@
 5. M4 根据候选结果/成本进行结构门控排序。
 6. M5 为“资源选择 + 字段选择 + 数据 + 请求”接口编译完整事务和并发 campaign。
 7. M6 为可能在内部 busy/hold 窗口拒绝配置的黑盒接口加入有界字段写重试。
-8. M7 是显式开启的专家教师，为已知 branch/cache/watchdog 结构加入状态序列模板；
-9. M8 从语义 IR 编译候选程序，并按实际覆盖增量与周期成本在线搜索。
-10. M8.1 从产生覆盖的 M3～M6 事务中提取程序并生成反馈约束的序列变体。
+8. M8 从语义 IR 编译候选程序，并按实际覆盖增量与周期成本在线搜索。
+9. M8.1 从产生覆盖的 M3～M6 事务中提取程序并生成反馈约束的序列变体。
 
 `coverage_dependency.py`、`semantic_ir.py`、`generic_planner.py`、
 `joint_candidates.py` 和 `generic_sequence_search.py` 分别负责依赖图、语义
@@ -23,10 +22,12 @@ IR、宏调度、联合候选编译和通用程序搜索，最终由 `_GenericPo
 
 ## 旧算法
 
-`app/inference/__init__.py` 中的 `_SpiPolicy` 和 `_DmaPolicy` 是旧专家教师，
-仅用于离线轨迹与历史对照。`InferenceInterface` 不会选择它们。公开 DUT
-目录中的 `inference_interface.py` 只在实验工具选择 `random` 或 `greedy`
-基线时加载，不属于提交路径。
+2026-09-26 移除了三块与泛化目标冲突的遗留实现：`_SpiPolicy` / `_DmaPolicy`
+旧专家教师、`neural_router.py` 家族路由 MLP（含训练/测试脚本与模型权重），
+以及 M7 的 branch/cache/watchdog 状态序列模板。`InferenceInterface` 从不
+选择它们，公开 DUT 目录中的 `inference_interface.py` 也只在实验工具选择
+`random` 或 `greedy` 基线时加载，均不属于提交路径。移除前状态见 git 提交
+`3a53a95`。
 
 ## 可复现实验
 
@@ -37,7 +38,6 @@ IR、宏调度、联合候选编译和通用程序搜索，最终由 `_GenericPo
 - `m4_adaptive_joint_ranking`：M3b 加候选结果/成本自适应排序；
 - `m5_field_selected_transactions`：M4 加字段选择完整事务与并发 campaign；
 - `m6_backend_robust_transactions`：M5 加字段写接受窗口鲁棒性；
-- `m7_stateful_sequence_templates`：显式开启 M7 专家教师；
 - `m8_generic_sequence_search`：默认提交路径，M6 加通用覆盖反馈程序搜索；
 - `m8_1_trace_learning`：当前默认提交路径，M8 加成功事务轨迹学习；
 - `baseline_random` / `baseline_greedy`：公开基线。
@@ -54,8 +54,7 @@ python3 tools/run_experiments.py --agent full --joint-candidates on \
 python3 tools/run_experiments.py --agent full --field-transaction-templates on \
   --robust-field-writes on --field-write-repeats 16 --output results/m6.json
 python3 tools/run_experiments.py --agent full \
-  --stateful-sequence-templates off --generic-sequence-search on \
-  --output results/m8.json
+  --generic-sequence-search on --output results/m8.json
 python3 tools/run_experiments.py --agent full \
   --generic-sequence-search on --generic-trace-learning on \
   --output results/m8_1.json
@@ -81,14 +80,13 @@ M6 当前默认开启。设置 `EDA_ROBUST_FIELD_WRITES=0` 或使用
 可用 `--field-write-repeats` 调整；开关和实际重试数均写入实验 JSON。重复写
 只在 M5 的字段选择接口结构门控通过后执行，不影响普通寄存器接口。
 
-M7 当前默认关闭，仅保留为离线教师和性能上界。设置
-`EDA_STATEFUL_SEQUENCE_TEMPLATES=1` 或使用
-`--stateful-sequence-templates on` 才会启用它。M7 含 branch、cache 和 watchdog
-结构的专用序列，因此不能作为未知 DUT 泛化能力的证据。显式开启 M7 时，专家
-序列优先于 M8 执行，便于复现实验和生成教师轨迹。
+M7（branch/cache/watchdog 专用状态序列）已于 2026-09-26 整体移除。它依赖
+DUT 家族专用知识，与“不读 DUT 名、不做家族路由”的泛化目标冲突，因此不再
+作为可开启选项保留。移除后 7 个 DUT 的 5k 回归与移除前逐位一致，见
+`results/m7_removal_regression_5k.json`。
 
 M8 当前默认开启。设置 `EDA_GENERIC_SEQUENCE_SEARCH=0` 或使用
-`--generic-sequence-search off` 可回退到 M6；M7 也关闭时，这一回退是精确的。
+`--generic-sequence-search off` 可精确回退到 M6。
 M8 不读取 DUT 名称，也不判断 branch/cache/watchdog 类型。它只使用语义 IR 中
 的字段角色、合法范围与枚举、可选的覆盖目标序列信息，以及执行后新增 bin 和周期
 成本。候选包括枚举重复与转移、地址关系和边界、多尺度地址扫描、控制恢复、寄存器
