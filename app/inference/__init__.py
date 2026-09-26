@@ -1961,7 +1961,6 @@ class _LocalInferenceInterface:
     def __init__(self, dut_spec_path: str, covergroup_path: str):
         spec = _read(dut_spec_path)
         self.semantic_ir = build_semantic_ir(spec)
-        self.semantic_ir = build_semantic_ir(spec)
         self.coverage_targets = load_coverage_targets(covergroup_path)
         action_fields = [item.name for item in self.semantic_ir.fields]
         action_dims = self.semantic_ir.action_dim
