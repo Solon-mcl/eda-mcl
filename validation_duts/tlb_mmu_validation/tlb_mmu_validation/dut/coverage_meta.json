@@ -1,0 +1,31 @@
+{
+  "dut_name":"tlb_mmu_validation",
+  "version":"v1.0",
+  "total_bins":78,
+  "coverpoints":[
+    {"name":"access_op","type":"basic","signal":"op","stage":"MMU","difficulty":"easy","bins":[{"name":"load","value":0},{"name":"store","value":1},{"name":"fetch","value":2},{"name":"atomic","value":3}]},
+    {"name":"priv_mode","type":"basic","signal":"priv","stage":"MMU","difficulty":"easy","bins":[{"name":"user","value":0},{"name":"supervisor","value":1}]},
+    {"name":"tlb_lookup","type":"basic","signal":"tlb_result","stage":"TLB","difficulty":"medium","bins":[{"name":"hit","value":0},{"name":"miss_refill","value":1},{"name":"miss_replace","value":2},{"name":"miss_nofill","value":3}]},
+    {"name":"walk_result","type":"basic","signal":"walk_result","stage":"WALK","difficulty":"medium","bins":[{"name":"not_walked","value":0},{"name":"walk_ok","value":1},{"name":"pte_invalid","value":2},{"name":"page_locked","value":3}]},
+    {"name":"hazard_type","type":"basic","signal":"hazard","stage":"WALK","difficulty":"medium","bins":[{"name":"none","value":0},{"name":"page_fault","value":1},{"name":"prot_fault","value":2},{"name":"asid_conflict","value":3}]},
+    {"name":"translation_result","type":"basic","signal":"result","stage":"MMU","difficulty":"medium","bins":[{"name":"hit_ok","value":0},{"name":"miss_ok","value":1},{"name":"page_fault","value":2},{"name":"prot_fault","value":3}]},
+    {"name":"dirty_state","type":"condition","signal":"dirty_before","stage":"PTE","difficulty":"easy","bins":[{"name":"clean","value":0},{"name":"dirty","value":1}]},
+    {"name":"accessed_state","type":"condition","signal":"accessed_clear","stage":"PTE","difficulty":"easy","bins":[{"name":"already_set","value":0},{"name":"cold_clear","value":1}]},
+    {"name":"fence_action","type":"basic","signal":"fence_class","stage":"TLB","difficulty":"medium","bins":[{"name":"none","value":0},{"name":"asid_fence","value":1},{"name":"full_flush","value":2}]},
+    {"name":"backpressure","type":"condition","signal":"stalled","stage":"FRONTEND","difficulty":"easy","bins":[{"name":"running","value":0},{"name":"stalled","value":1}]},
+    {"name":"entry_scope","type":"condition","signal":"entry_global","stage":"TLB","difficulty":"medium","bins":[{"name":"local","value":0},{"name":"global","value":1}]},
+    {"name":"op_x_result","type":"cross","signal":"op,result","stage":"MMU","difficulty":"hard","bins":[{"name":"load_hit","cross":[0,0]},{"name":"load_miss","cross":[0,1]},{"name":"load_page_fault","cross":[0,2]},{"name":"load_prot_fault","cross":[0,3]},{"name":"store_hit","cross":[1,0]},{"name":"store_miss","cross":[1,1]},{"name":"store_page_fault","cross":[1,2]},{"name":"store_prot_fault","cross":[1,3]},{"name":"fetch_hit","cross":[2,0]},{"name":"fetch_miss","cross":[2,1]},{"name":"fetch_prot_fault","cross":[2,3]},{"name":"atomic_hit","cross":[3,0]},{"name":"atomic_miss","cross":[3,1]},{"name":"atomic_prot_fault","cross":[3,3]}]},
+    {"name":"priv_x_hazard","type":"cross","signal":"priv,hazard","stage":"MMU","difficulty":"hard","bins":[{"name":"user_clean","cross":[0,0]},{"name":"user_page_fault","cross":[0,1]},{"name":"user_prot_fault","cross":[0,2]},{"name":"user_asid_conflict","cross":[0,3]},{"name":"super_clean","cross":[1,0]},{"name":"super_page_fault","cross":[1,1]},{"name":"super_asid_conflict","cross":[1,3]}]},
+    {"name":"op_x_dirty","type":"cross","signal":"op,dirty_before","stage":"PTE","difficulty":"hard","bins":[{"name":"load_dirty","cross":[0,1]},{"name":"store_clean","cross":[1,0]},{"name":"store_dirty","cross":[1,1]},{"name":"fetch_clean","cross":[2,0]},{"name":"atomic_clean","cross":[3,0]},{"name":"atomic_dirty","cross":[3,1]}]},
+    {"name":"lookup_x_walk","type":"cross","signal":"tlb_result,walk_result","stage":"WALK","difficulty":"hard","bins":[{"name":"hit_not_walked","cross":[0,0]},{"name":"refill_walk_ok","cross":[1,1]},{"name":"replace_walk_ok","cross":[2,1]},{"name":"nofill_pte_invalid","cross":[3,2]},{"name":"nofill_page_locked","cross":[3,3]}]},
+    {"name":"fence_x_lookup","type":"cross","signal":"fence_class,tlb_result","stage":"TLB","difficulty":"hard","bins":[{"name":"none_hit","cross":[0,0]},{"name":"none_refill","cross":[0,1]},{"name":"asid_fence_hit","cross":[1,0]},{"name":"asid_fence_refill","cross":[1,1]},{"name":"full_flush_refill","cross":[2,1]}]},
+    {"name":"seq_walk_refill_hit","type":"seq_hit","seq":"seq1","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_victim_replace","type":"seq_hit","seq":"seq2","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_asid_alias","type":"seq_hit","seq":"seq3","difficulty":"hardest","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_fence_evict","type":"seq_hit","seq":"seq4","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_global_survive","type":"seq_hit","seq":"seq5","difficulty":"hardest","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_fault_recover","type":"seq_hit","seq":"seq6","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_stall_recover","type":"seq_hit","seq":"seq7","difficulty":"hard","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_satp_change","type":"seq_hit","seq":"seq8","difficulty":"hardest","bins":[{"name":"hit","value":1}]}
+  ]
+}

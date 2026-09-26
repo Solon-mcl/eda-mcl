@@ -19,8 +19,9 @@ import subprocess
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-if _HERE not in sys.path:
-    sys.path.insert(0, _HERE)
+if _HERE in sys.path:
+    sys.path.remove(_HERE)
+sys.path.insert(0, _HERE)
 
 import run_verilator as rv  # noqa: E402
 
