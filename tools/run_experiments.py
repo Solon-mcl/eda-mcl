@@ -103,12 +103,11 @@ def load_harness(dut, backend):
     return module, getattr(module, klass), base
 
 
-def make_agent(kind, base, seed, controller_model=None):
+def make_agent(kind, base, seed):
     if kind == "full":
         os.environ["EDA_STIMULUS_SEED"] = str(int(seed))
         return InferenceInterface(str(base / "dut/dut_spec.md"),
-                                  str(base / "dut/covergroup.svh"),
-                                  controller_path=controller_model)
+                                  str(base / "dut/covergroup.svh"))
     spec = importlib.util.spec_from_file_location(
         f"baseline_{base.name}_{kind}", base / "inference_interface.py")
     module = importlib.util.module_from_spec(spec)
@@ -119,12 +118,12 @@ def make_agent(kind, base, seed, controller_model=None):
 
 
 def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
-        controller_model=None, trace_actions=False, secrets=None):
+        trace_actions=False, secrets=None):
     module, harness_cls, base = load_harness(dut, backend)
     harness = harness_cls(backend=backend, secrets=secrets)
     state = np.asarray(harness.reset(), dtype=np.float32).reshape(-1)
     init_started = time.perf_counter()
-    agent = make_agent(agent_kind, base, seed, controller_model)
+    agent = make_agent(agent_kind, base, seed)
     init_elapsed = time.perf_counter() - init_started
     curve = [[0, float(np.mean(state))]]
     timings = []
@@ -297,7 +296,6 @@ def main():
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--seed", type=int, default=260923)
     parser.add_argument("--output", default="results/latest.json")
-    parser.add_argument("--controller-model", default=None)
     parser.add_argument(
         "--secrets-json", default=None,
         help="development-only JSON object or JSON file with harness secrets")
@@ -385,8 +383,7 @@ def main():
         for dut in duts:
             records.append(run(dut, args.steps, args.interval, args.backend,
                                args.agent, args.seed + repeat,
-                               args.controller_model, args.trace_actions,
-                               secrets))
+                               args.trace_actions, secrets))
     out = ROOT / args.output
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")

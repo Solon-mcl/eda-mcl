@@ -1,8 +1,9 @@
 # 神经网络泛化方案与真实 RTL 离线 Q 学习
 
 > **状态（2026-09-26）**：本文记录 M8 通用策略之前的混合专家架构，保留作为历史记录与
-> 实验数据出处。其中的 **DUT 路由 MLP（第 3.1 节）已随家族路由组件一并移除**，
-> 推理路径不再做任何 DUT 家族判定。当前算法的完整说明见
+> 实验数据出处。文中组件**已全部移出推理路径**：DUT 路由 MLP（第 3.1 节）随家族路由
+> 组件移除；Deep Sets 覆盖编码器与离线 Q 控制器（第 3.2、4、6 节）因输出的宏 Q 值从未
+> 被 `predict()` 读取，且宏语义与通用策略不一致，一并移除。当前算法的完整说明见
 > [`CURRENT_ALGORITHM_OVERVIEW.md`](CURRENT_ALGORITHM_OVERVIEW.md)。
 
 ## 1. 总体结构
@@ -96,22 +97,24 @@ N x 13 variable-length bin set
 
 SPI Xfer 在约 17k cycles、SPI Master 在约 25k cycles 达到 100%；DMA 的最终覆盖和 AUC 不受宏 Q 控制器影响。
 
-## 6. 文件与复现
+## 6. 文件与复现（代码路径已失效）
 
-- 推理：`app/inference/coverage_controller.py`
-- 合成预训练模型：`app/inference/model/coverage_controller.npz`
-- 真实轨迹 Q 模型：`app/inference/model/coverage_q_controller.npz`
-- 轨迹采集：`tools/collect_macro_trajectories.py`
-- 离线 Q 训练：`tools/train_offline_q_controller.py`
-- 真实轨迹：`results/macro_trajectories_verilator.json`
-- Q 训练指标：`results/coverage_q_training.json`
-- 最终 RTL 回归：`results/offline_q_final_verilator_30k.json`
+> 下列代码文件已于 2026-09-26 删除，本节仅作为方法与数据溯源保留；`results/` 下的
+> 实验数据文件仍在。
+
+- ~~推理：`app/inference/coverage_controller.py`~~
+- ~~合成预训练模型：`app/inference/model/coverage_controller.npz`~~
+- ~~真实轨迹 Q 模型：`app/inference/model/coverage_q_controller.npz`~~
+- ~~轨迹采集：`tools/collect_macro_trajectories.py`~~
+- ~~离线 Q 训练：`tools/train_offline_q_controller.py`~~
+- 真实轨迹（数据保留）：`results/macro_trajectories_verilator.json`
+- Q 训练指标（数据保留）：`results/coverage_q_training.json`
+- 最终 RTL 回归（数据保留）：`results/offline_q_final_verilator_30k.json`
 
 ```bash
-python3 tools/collect_macro_trajectories.py --backend verilator --steps 30000 --orders 8
-python3 tools/train_offline_q_controller.py
-python3 tools/run_experiments.py --dut all --steps 30000 --backend verilator \
-  --output results/offline_q_final_verilator_30k.json
+# 前两条命令的脚本已删除；下面的命令仍可用于真实 RTL 回归
+python3 tools/run_experiments.py --dut dma_xfer_public --steps 30000 \
+  --backend verilator --output results/rtl_regression_30k.json
 ```
 
 ## 7. 当前边界

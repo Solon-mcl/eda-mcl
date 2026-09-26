@@ -1,4 +1,4 @@
-# 当前算法整理（代码快照：2026-09-26，M7 与家族路由移除后）
+# 当前算法整理（代码快照：2026-09-26，M7、家族路由与神经覆盖控制器移除后）
 
 本文是**从代码出发的现状梳理**，说明提交路径上实际跑的是什么。版本沿革与消融开关的语义见
 `docs/ALGORITHM_VARIANTS.md`，逐阶段进度见 `docs/IMPLEMENTATION_PROGRESS.md`。
@@ -25,7 +25,6 @@
   └─ InferenceInterface(dut_spec_path, covergroup_path)      app/inference/__init__.py
        ├─ DeepSeekPlanner.plan()        # 可选，仅此处一次，默认禁用
        └─ UniversalPolicy(_GenericPolicy)
-            ├─ CoverageSetController   # Deep Sets，每 32 周期算一次宏 Q 值
             ├─ CoverageMacroScheduler  # 宏级 UCB
             ├─ EpisodeManager          # 停滞/收益触发新 episode
             ├─ JointCandidateRanker    # 联合候选排序（M4）
@@ -183,10 +182,22 @@ request / data 字段），不满足的接口自动保持上一版行为，不�
 
 | 组件 | 结构 | 现状 |
 |---|---|---|
-| `CoverageSetController` | 每 bin 13 维 → `phi: 13→24`+ReLU → 均值池化(全量 ‖ 未覆盖)+3 维全局 → `rho: 51→32→4`，输出 4 宏 Q 值 | 每 32 周期刷新一次；模型缺失时退化为确定性启发式（早期偏 basic、后期偏 temporal） |
-| `coverage_q_controller.npz` | 用真实 Verilator 轨迹做的半马尔可夫 fitted-Q（64 条转移、30 次迭代、每千周期折扣 0.97、保守惩罚 0.04） | 作为宏打分的 `learned_bonus` 输入 |
-| `UniversalOptionModel` | 线性 `features → 4 option` | **当前 `approved=False`，运行时返回全 0，不生效** |
+| `UniversalOptionModel` | 线性 `features → 4 option`，特征为 IR 角色计数、目标类型计数、难度权重与预算进度 | **当前 `approved=False`，运行时返回全 0，不生效** |
 | `DeepSeekPlanner` | OpenAI 兼容客户端，`__init__` 一次调用，JSON schema 校验 + 范围/维度/有限性校验 | **默认禁用**（需 `DEEPSEEK_ENABLED=1` + key）。失败/超时/不合法响应一律降级为纯本地策略；逐周期路径不碰网络 |
+
+### 已移除：神经覆盖控制器（2026-09-26）
+
+`CoverageSetController`（Deep Sets：每 bin 13 维 → `phi 13→24`+ReLU → 均值池化(全量 ‖
+未覆盖)+3 维全局 → `rho 51→32→4`，输出 4 个宏 Q 值）连同 `coverage_controller.npz`、
+`coverage_q_controller.npz` 与 4 个配套脚本一并删除。两条理由：
+
+1. **它是死信号**：输出的宏 Q 值经 `macro_scores=` 传进 `_GenericPolicy.predict()` 后，
+   函数体从未读取该参数；宏打分里的 `learned_bonus` 读的是 `UniversalOptionModel`
+   （当前恒为 0）。即每 32 周期做一次前向，对决策零影响。
+2. **宏语义与通用策略冲突**：它的 4 个输出是 `basic/boundary/cross/temporal`，而通用
+   策略的 4 个宏是 `configure/control/temporal/recovery`，两套语义无法直接对齐。
+
+移除后 `predict()` 不再做周期性前向，覆盖率逐位不变（见第 13 节）。
 
 ## 11. 安全与合法性约束层
 
@@ -234,6 +245,9 @@ request / data 字段），不满足的接口自动保持上一版行为，不�
 
 **移除 M7 与家族路由后的回归**（`results/m7_removal_regression_5k.json`）：7 个 DUT 与上表
 5k 数字逐位一致，证明这些组件原本不在默认路径上参与决策。
+
+**移除神经覆盖控制器后的回归**（`results/coverage_controller_removal_regression_5k.json`）：
+同样 7 个 DUT 逐位一致，`predict()` P99 仍低于 1.3 ms。
 
 ## 14. 已知边界
 

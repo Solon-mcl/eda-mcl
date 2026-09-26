@@ -22,9 +22,11 @@ IR、宏调度、联合候选编译和通用程序搜索，最终由 `_GenericPo
 
 ## 旧算法
 
-2026-09-26 移除了三块与泛化目标冲突的遗留实现：`_SpiPolicy` / `_DmaPolicy`
-旧专家教师、`neural_router.py` 家族路由 MLP（含训练/测试脚本与模型权重），
-以及 M7 的 branch/cache/watchdog 状态序列模板。`InferenceInterface` 从不
+2026-09-26 移除了四块与泛化目标冲突或已断链的遗留实现：`_SpiPolicy` / `_DmaPolicy`
+旧专家教师、`neural_router.py` 家族路由 MLP（含训练/测试脚本与模型权重）、M7 的
+branch/cache/watchdog 状态序列模板，以及 `coverage_controller.py` 神经覆盖控制器
+（含 2 个模型与 4 个配套脚本 —— 它输出的宏 Q 值从未被 `predict()` 读取，且宏语义与
+通用策略不一致）。`InferenceInterface` 从不
 选择它们，公开 DUT 目录中的 `inference_interface.py` 也只在实验工具选择
 `random` 或 `greedy` 基线时加载，均不属于提交路径。移除前状态见 git 提交
 `3a53a95`。

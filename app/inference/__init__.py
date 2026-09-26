@@ -14,7 +14,6 @@ from collections import deque
 
 import numpy as np
 
-from .coverage_controller import CoverageSetController, default_q_controller_path
 from .deepseek_planner import DeepSeekPlanner
 from .coverage_targets import load_coverage_targets, missing_target_weights
 from .coverage_dependency import build_coverage_dependency_graph
@@ -112,8 +111,7 @@ class _QueuePolicy:
             self.queue[0] = (action, left - 1)
         return action.copy()
 
-    def predict(self, coverage_state, step: int, max_steps: int,
-                macro_scores=None) -> np.ndarray:
+    def predict(self, coverage_state, step: int, max_steps: int) -> np.ndarray:
         return self.take()
 
 
@@ -1909,8 +1907,7 @@ class _GenericPolicy(_QueuePolicy):
         ])
         self._active_target = None
 
-    def predict(self, coverage_state, step: int, max_steps: int,
-                macro_scores=None) -> np.ndarray:
+    def predict(self, coverage_state, step: int, max_steps: int) -> np.ndarray:
         state = np.asarray(coverage_state, dtype=np.float32).reshape(-1)
         covered = int(np.sum(state))
         covered_bins = set(np.flatnonzero(state > 0.5).astype(int).tolist())
@@ -1961,13 +1958,9 @@ class UniversalPolicy(_GenericPolicy):
 class _LocalInferenceInterface:
     """Standard committee inference interface."""
 
-    def __init__(self, dut_spec_path: str, covergroup_path: str,
-                 macro_order=None, controller_path=None):
+    def __init__(self, dut_spec_path: str, covergroup_path: str):
         spec = _read(dut_spec_path)
-        cover = _read(covergroup_path)
-        self._coverage_controller = CoverageSetController(
-            controller_path or default_q_controller_path(), covergroup_path)
-        self._macro_scores_cache = np.zeros(4, dtype=np.float32)
+        self.semantic_ir = build_semantic_ir(spec)
         self.semantic_ir = build_semantic_ir(spec)
         self.coverage_targets = load_coverage_targets(covergroup_path)
         action_fields = [item.name for item in self.semantic_ir.fields]
@@ -1980,24 +1973,14 @@ class _LocalInferenceInterface:
 
     def predict(self, coverage_state: np.ndarray, step: int,
                 max_steps: int) -> np.ndarray:
-        # Macro decisions occur hundreds of cycles apart. Refreshing the set
-        # encoder every 32 cycles preserves responsive feedback while avoiding
-        # unnecessary matrix work on every low-level bus cycle.
-        if int(step) == 0 or int(step) % 32 == 0:
-            self._macro_scores_cache = self._coverage_controller.predict(
-                coverage_state, int(step), int(max_steps))
-        macro_scores = self._macro_scores_cache
-        self.neural_macro_scores = macro_scores
-        action = self._policy.predict(coverage_state, int(step), int(max_steps),
-                                      macro_scores=macro_scores)
+        action = self._policy.predict(coverage_state, int(step), int(max_steps))
         return np.asarray(action, dtype=np.float32).reshape(-1)
 
 
 class InferenceInterface(_LocalInferenceInterface):
     """Committee interface with one-shot DeepSeek semantic planning."""
 
-    def __init__(self, dut_spec_path: str, covergroup_path: str,
-                 macro_order=None, controller_path=None):
+    def __init__(self, dut_spec_path: str, covergroup_path: str):
         spec = _read(dut_spec_path)
         cover = _read(covergroup_path)
 
@@ -2005,8 +1988,7 @@ class InferenceInterface(_LocalInferenceInterface):
         # normal state and the complete local policy remains available.
         self._llm = DeepSeekPlanner()
         self.llm_plan, self.llm_status = self._llm.plan(spec, cover)
-        super().__init__(dut_spec_path, covergroup_path, macro_order,
-                         controller_path)
+        super().__init__(dut_spec_path, covergroup_path)
 
         plan = self.llm_plan
         if not plan:

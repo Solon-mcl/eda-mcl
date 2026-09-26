@@ -48,7 +48,7 @@ zero: coverpoint result { bins zero = {0}; } endgroup"""
                                str(base / "covergroup.svh"))
     plan = agent.llm_plan or {}
     action = agent.predict(np.zeros(
-        len(agent._coverage_controller.descriptors), dtype=np.float32), 0, 50000)
+        len(agent.coverage_targets), dtype=np.float32), 0, 50000)
     report = {
         "dut": args.dut,
         "environment": {
