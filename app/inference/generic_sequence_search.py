@@ -82,6 +82,11 @@ class GenericSequenceSearch:
             # Feedback-derived candidates can arrive after a long static
             # candidate list. Explicit priority lets them run promptly while
             # insertion order remains the tie breaker.
+            #
+            # Deliberately not ordered by cost, and deliberately not bounded by
+            # a cycle budget: both were measured and both were worse (DMA
+            # 82 -> 69 / 71), because the programs that pay off sit deeper in
+            # the sweep than the cheap generated ones.
             return max(untried, key=lambda item: int(
                 item.metadata.get("priority", 10)))
         retryable = [item for item in eligible if item.attempts < 2]

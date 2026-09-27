@@ -212,6 +212,16 @@ class _GenericPolicy(_QueuePolicy):
         self.combinatorial_candidates_enabled = os.environ.get(
             "EDA_COMBINATORIAL_CANDIDATES", "1").lower() not in (
                 "0", "false", "no")
+        # Generated (combinatorial) families widen the hypothesis space, but
+        # they cost bins whenever they compete with a working structured path.
+        # On a rich pool that holds no matter how the search layer orders them:
+        #   mixed into the pool            DMA 82 -> 71, SPI-master 72 -> 69
+        #   behind a first-trial budget    DMA 82 -> 72, cache 56 -> 43
+        #   as a lower search tier         DMA 82 -> 71, SPI-master 72 -> 64
+        #   productive-retry prioritising  no change at all (448 -> 448)
+        # So they stay behind a structural gate.  EDA_COMBINATORIAL_MIN_POOL is
+        # the supply-side half of that gate (a sparse schema has nothing to
+        # lose) and forces "always offer them" for A/B runs.
         self.combinatorial_min_pool = max(0, int(os.environ.get(
             "EDA_COMBINATORIAL_MIN_POOL", "8")))
 
@@ -260,20 +270,25 @@ class _GenericPolicy(_QueuePolicy):
         self.stall_indices = role_indices("stall")
         self.flush_indices = role_indices("recovery")
         self.pad_indices = role_indices("padding")
-        # Lane grouping must accept exactly the names _infer_role accepts as
-        # lane roles; keeping a second, narrower pattern set here silently
-        # dropped valid lanes from every role-driven candidate.
+        # Lane grouping is driven by the IR role, not by a second pattern set.
+        # Two bugs came from keeping a private name matcher here: 'va0' was
+        # classified as an address lane yet never entered addr_lanes (candidate
+        # pool 72 -> 24), and any lane whose role was recovered from the
+        # description rather than the name stayed invisible.  The numeric
+        # suffix only supplies ordering; the role supplies membership.
         self.addr_lanes = self._lane_indices(
             (r"^a(\d+)$", r"^va_?(\d+)$", r"^pa_?(\d+)$", r"^addr_?(\d+)$",
              r"^vaddr_?(\d+)$", r"^paddr_?(\d+)$", r"^vpn_?(\d+)$",
-             r"^virt_?(\d+)$", r"^phys_?(\d+)$"))
+             r"^virt_?(\d+)$", r"^phys_?(\d+)$"), role="address_lane")
         self.data_lanes = self._lane_indices(
             (r"^d(\d+)$", r"^data_?(\d+)$", r"^wdata_?(\d+)$",
              r"^din_?(\d+)$", r"^dout_?(\d+)$", r"^payload_?(\d+)$",
-             r"^dat_?(\d+)$"))
-        self.pc_lanes = self._lane_indices((r"^p(\d+)$", r"^pc_?(\d+)$"))
+             r"^dat_?(\d+)$"), role="data_lane")
+        self.pc_lanes = self._lane_indices((r"^p(\d+)$", r"^pc_?(\d+)$"),
+                                           role="pc_lane")
         self.target_lanes = self._lane_indices((r"^t(\d+)$",
-                                               r"^target_?(\d+)$"))
+                                               r"^target_?(\d+)$"),
+                                               role="target_lane")
         self._target_index = {
             (item.coverpoint, item.bin_name): int(item.index)
             for item in self.coverage_targets}
@@ -282,6 +297,31 @@ class _GenericPolicy(_QueuePolicy):
             self.instance_select_indices and self.register_address_indices and
             self.write_enable_indices and self.valid_indices and
             (self.data_lanes or self.register_data_indices))
+        # The gate above is a static judgement made from role names.  An online
+        # probe is the alternative: spend a bounded amount of the episode
+        # exercising the register-write structure and enable the template only
+        # if the DUT actually responds.  Kept switchable so it can be measured
+        # against the static gate instead of assumed to be better.
+        self.interface_probe_enabled = os.environ.get(
+            "EDA_INTERFACE_PROBE", "0").lower() not in ("0", "false", "no")
+        self.interface_probe_min_roles = max(1, int(os.environ.get(
+            "EDA_INTERFACE_PROBE_MIN_ROLES", "3")))
+        self.interface_capability = {
+            "instance_select": bool(self.instance_select_indices),
+            "register_address": bool(self.register_address_indices),
+            "write_enable": bool(self.write_enable_indices),
+            "request": bool(self.valid_indices),
+            "payload": bool(self.data_lanes or self.register_data_indices),
+        }
+        self.interface_capability_score = sum(self.interface_capability.values())
+        self.interface_probe_result = "not_run"
+        self._interface_probe_state = "idle"
+        self._interface_probe_baseline = 0
+        self._interface_probe_armed = bool(
+            self.interface_probe_enabled and
+            not self.field_selected_interface and
+            self.interface_capability_score >= self.interface_probe_min_roles and
+            self.register_address_indices and self.write_enable_indices)
         self.generic_sequence_has_explicit_targets = any(
             item.sequence is not None or item.kind in
             ("sequence", "sequential", "temporal", "seq_hit")
@@ -329,14 +369,28 @@ class _GenericPolicy(_QueuePolicy):
             if len(action) == self.dims:
                 self.put(self._sanitize(action), item.get("cycles", 1))
 
-    def _lane_indices(self, patterns):
+    def _lane_indices(self, patterns, role=None):
+        """Group lanes by role.
+
+        Membership comes from the numeric suffix when the name exposes one;
+        otherwise from the IR role, so a lane whose role was recovered from
+        the description is grouped as well.  Ordering uses the suffix, falling
+        back to declaration order.
+        """
         lanes = []
         for index, name in enumerate(self.fields):
+            position = None
             for pattern in patterns:
                 match = re.match(pattern, name)
                 if match:
-                    lanes.append((int(match.group(1)), index))
+                    position = int(match.group(1))
                     break
+            if position is None and role is not None:
+                item = self.semantic_ir.field(index)
+                if item is not None and item.role == role:
+                    position = index
+            if position is not None:
+                lanes.append((position, index))
         return [index for _, index in sorted(lanes)]
 
     def _base_action(self):
@@ -1110,13 +1164,21 @@ class _GenericPolicy(_QueuePolicy):
                             f"capability.register.a{address}.v{value}",
                             tuple(steps),
                             {"family": "capability_register_sequence"}))
-        # Combinatorial candidates are a supply-side fallback: they only help
-        # when the schema-driven families produced a thin pool.  Stacking them
-        # on top of an already rich pool measurably dilutes the cycle budget
-        # (measured: DMA 82 -> 71 bins, SPI 72 -> 69), so the same kind of
-        # structural gate used elsewhere in this policy applies here too.
-        if (self.combinatorial_candidates_enabled and
-                len(candidates) < self.combinatorial_min_pool):
+        # Two structural conditions admit the generated families:
+        #   1. the schema-driven families produced a thin pool, so there is
+        #      nothing for the generated ones to compete with;
+        #   2. a register map exists but the joint-candidate set is empty or too
+        #      large for the M4 ranker, i.e. the structured transaction path is
+        #      unavailable exactly where the generated families could help.
+        # Measured: condition 2 is what buys SPI-xfer 47 -> 56 bins, while DMA
+        # (no register map), SPI-master (ranker usable) and every validation
+        # DUT keep their existing behaviour unchanged.
+        joint_path_unavailable = (bool(self.joint_candidates) and
+                                  not self.adaptive_joint_ranking_applied)
+        needs_generated_families = (
+            len(candidates) < self.combinatorial_min_pool or
+            (bool(self.semantic_ir.registers) and joint_path_unavailable))
+        if self.combinatorial_candidates_enabled and needs_generated_families:
             candidates.extend(self._build_combinatorial_candidates())
         if not candidates:
             # A sparse or unusually named schema can satisfy none of the
@@ -1732,6 +1794,46 @@ class _GenericPolicy(_QueuePolicy):
             wait_cycles=wait)
         return True
 
+    def _next_interface_probe(self, covered_bins):
+        """One bounded structural probe for the register-write interface.
+
+        Emits a short register sweep, then judges it by observed coverage.  On
+        a gain the static gate is revoked for the rest of the episode, so the
+        field-transaction templates take over; with no gain the probe is
+        disarmed and nothing else changes.
+        """
+        if not self._interface_probe_armed:
+            return False
+        if self._interface_probe_state == "idle":
+            self._interface_probe_baseline = len(covered_bins)
+            for address in (0, 1, 2, 3):
+                for value in (0, 0xFFFFFFFF):
+                    action = self._base_action()
+                    for index in self.write_enable_indices:
+                        action[index] = 1
+                    for index in self.register_address_indices:
+                        action[index] = address
+                    self._write_data(action, value)
+                    self.put(self._sanitize(action), 2)
+                    self.put(self._sanitize(self._base_action()), 2)
+            trigger = (self.valid_indices + self.advance_indices +
+                       self.event_indices + self.enable_indices)
+            if trigger:
+                pulse = self._base_action()
+                pulse[trigger[0]] = 1
+                self.put(self._sanitize(pulse), 2)
+                self.put(self._sanitize(self._base_action()), 16)
+            self._interface_probe_state = "running"
+            return True
+        gained = len(covered_bins) > self._interface_probe_baseline
+        if gained:
+            self.field_selected_interface = True
+            self.field_transaction_templates = True
+        self.interface_probe_result = ("gain" if gained else "no_gain")
+        self._interface_probe_state = "done"
+        self._interface_probe_armed = False
+        return False
+
     def _next_field_selected_transaction(self):
         cursor = self._field_transaction_cursor
         conflict_campaign = cursor > 0 and cursor % 8 == 7
@@ -1996,6 +2098,13 @@ class _GenericPolicy(_QueuePolicy):
             target_weights=target_weights,
             model_scores=getattr(self, "_universal_model_scores", None))
         self.macro_trace.append(macro)
+        if self._next_interface_probe(covered_bins):
+            self._macro_scheduler.attach_plan([
+                {"action": action.astype(float).tolist(), "cycles": int(cycles)}
+                for action, cycles in self.queue
+            ])
+            self._active_target = None
+            return
         candidates = [target for target in missing_targets
                       if macro in target.macro_hints]
         # Prefer targets with a spec/metadata-supported path to controllable

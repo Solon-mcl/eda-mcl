@@ -65,10 +65,30 @@ def infer_action_dim(spec: str, fields=None) -> int:
     return declared or 1
 
 
-def _description_for(spec: str, name: str) -> str:
+def action_declaration_lines(spec: str) -> set:
+    """Line indices occupied by an ``action = [...]`` declaration.
+
+    Such a line lists *every* field name, so treating it as a per-field
+    description hands each field the whole signal list.  Measured consequence:
+    enabling a description-driven rule ("description mentions asid") collapsed
+    the bundled TLB DUT from 78/78 to 6/78 covered bins, because every field's
+    "description" contained every other field's name.
+    """
+    occupied = set()
+    for match in re.finditer(r"\baction\s*=\s*\[[\s\S]*?\]", spec,
+                             flags=re.IGNORECASE):
+        first = spec.count("\n", 0, match.start())
+        last = spec.count("\n", 0, match.end())
+        occupied.update(range(first, last + 1))
+    return occupied
+
+
+def _description_for(spec: str, name: str, skip_lines=()) -> str:
     escaped = re.escape(name)
     lines = []
-    for line in spec.splitlines():
+    for index, line in enumerate(spec.splitlines()):
+        if index in skip_lines:
+            continue
         if re.search(rf"(?:`|\b){escaped}(?:`|\b)", line, re.IGNORECASE):
             lines.append(line.strip())
     return " ".join(lines)
@@ -178,6 +198,100 @@ def _infer_role(name: str, description: str) -> str:
                   "select_n") or value.endswith(("_enable", "_csn"))):
         return "enable"
     return "scalar"
+
+
+_BULLET_KEY = re.compile(
+    r"^[-*+]\s+\*{0,2}`?([^`\s:：|*]+)`?\*{0,2}\s*[:：]")
+_TABLE_KEY = re.compile(r"^\|\s*`?([^`\s|]+)`?\s*\|")
+_RANGE_KEY = re.compile(r"^([A-Za-z_]+)(\d+)\.\.([A-Za-z_]*)(\d+)$")
+_INDEXED_NAME = re.compile(r"^([A-Za-z_]+)(\d+)$")
+
+
+def _key_covers(key: str, name: str) -> bool:
+    """Does a bullet/table key address this field?
+
+    Lane groups are documented as a range key (``- `vpn0..vpn3`: ...``), so a
+    line keyed on the range belongs to every member of the range, not only to
+    its first element.
+    """
+    if key.lower() == name.lower():
+        return True
+    span = _RANGE_KEY.match(key)
+    indexed = _INDEXED_NAME.match(name)
+    if not span or not indexed:
+        return False
+    if indexed.group(1).lower() != span.group(1).lower():
+        return False
+    first, last = int(span.group(2)), int(span.group(4))
+    return min(first, last) <= int(indexed.group(2)) <= max(first, last)
+
+
+def keyed_description_for(spec: str, name: str, skip_lines=()) -> str:
+    """Description restricted to lines where *name* is the leading key.
+
+    ``_description_for`` returns every line that merely mentions the field, and
+    aggregate lines ("``a0..a3``: byte-address in little-endian byte lanes")
+    mention several fields at once.  For semantic inference only the lines that
+    are *about* this field are usable, i.e. a bullet key (``- `x`: ...``) or a
+    table key (``| `x` | ... |``).
+    """
+    lines = []
+    for index, line in enumerate(spec.splitlines()):
+        if index in skip_lines:
+            continue
+        stripped = line.strip()
+        for pattern in (_BULLET_KEY, _TABLE_KEY):
+            match = pattern.match(stripped)
+            if match and _key_covers(match.group(1), name):
+                lines.append(stripped)
+                break
+    return " ".join(lines)
+
+
+# Ordered, first-hit-wins triggers applied to the *keyed* description only.
+# They exist to recover a role when the field name carries no information
+# ("f0", "sig2"), which is the case that name-only inference cannot cover.
+# Each trigger is a distinctive phrase rather than a single word, because the
+# cost of a wrong role is a wasted candidate family, not a crash.
+_DESCRIPTION_ROLE_RULES = (
+    (("active-low reset", "active low reset", "external reset", "dut reset",
+      "resets the", "clears the block", "复位"), "reset"),
+    (("address-space identifier", "address space identifier",
+      "address-space id", "address space id"), "context_id"),
+    (("privilege level", "privilege", "supervisor", "user mode"), "privilege"),
+    (("marked global", "global mapping", "global entry", "be marked global"),
+     "scope"),
+    (("tlb fence", "page-table root", "page-table-root", "flush", "invalidate"),
+     "recovery"),
+    (("backpressure", "ignored while asserted", "hold off", "deassert"),
+     "stall"),
+    (("permits one", "ready", "handshake"), "ready"),
+    (("clock enable", "advances the", "advance the", "clk_en"), "advance"),
+    (("request strobe", "submit a", "submits a", "assert to", "asserted to",
+      "present a request", "启动"), "request"),
+    (("0=load", "1=store", "0=read, 1=write", "read-modify-write",
+      "opcode", "operation class"), "operation"),
+    (("fault", "inject", "error"), "fault"),
+    (("service-key", "service key", "doorbell", "kick", "trigger"), "event"),
+    (("write data", "register write", "payload"), "register_data"),
+    (("register address", "register index"), "register_address"),
+    (("write enable", "write strobe", "strobe a write"), "write_enable"),
+    (("read enable", "read strobe", "strobes a read", "read back"),
+     "read_enable"),
+    (("completion",), "interrupt"),
+    (("byte-address", "byte address", "program counter", "little-endian",
+      "little endian"), "address_lane"),
+)
+
+
+def _infer_role_from_description(keyed: str):
+    text = keyed.lower()
+    if not text:
+        return None
+    for triggers, role in _DESCRIPTION_ROLE_RULES:
+        if any(trigger in text for trigger in triggers):
+            return role
+    return None
 
 
 def _infer_bounds(name: str, description: str, role: str) -> tuple[int, int, int]:
@@ -484,10 +598,17 @@ def build_semantic_ir(spec: str) -> DutSemanticIR:
                                spec, re.IGNORECASE)
     declared = int(declared_match.group(1)) if declared_match else None
     dims = infer_action_dim(spec, names)
+    skip_lines = action_declaration_lines(spec)
     fields = []
     for index, name in enumerate(names):
-        description = _description_for(spec, name)
+        description = _description_for(spec, name, skip_lines)
         role = _infer_role(name, description)
+        if role == "scalar":
+            # Name-only inference failed; the spec prose may still say what the
+            # signal is.  Only the keyed lines are trusted here, since mixed
+            # lines mention several fields at once.
+            role = _infer_role_from_description(
+                keyed_description_for(spec, name, skip_lines)) or role
         minimum, maximum, width = _infer_bounds(name, description, role)
         active_low = (name.endswith("_n") or
                       "active-low" in description.lower() or
