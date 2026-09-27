@@ -85,18 +85,22 @@ def _infer_role(name: str, description: str) -> str:
             (("ch" in value or "channel" in value or "instance" in value) and
              ("sel" in value or "select" in value))):
         return "instance_select"
-    if (value in ("reg_we", "cfg_we", "conf_wr", "cfg_wr", "bus_wr",
-                  "wr_en", "write_enable") or value.endswith(("_we", "_wr"))):
+    if (value in ("reg_we", "cfg_we", "conf_wr", "cfg_wr", "bus_wr", "wr_en",
+                  "we", "wr", "write", "wren", "wr_enable", "write_enable") or
+            value.endswith(("_we", "_wr", "_wren"))):
         return "write_enable"
-    if value in ("reg_re", "rd_en", "read_enable") or value.endswith("_re"):
+    if (value in ("reg_re", "rd_en", "re", "rd", "oe", "oen", "read",
+                  "read_enable") or value.endswith(("_re", "_rd"))):
         return "read_enable"
     if value in ("reg_addr", "register_addr", "cfg_addr", "csr_addr",
-                 "conf_field", "cfg_field", "register_select"):
+                 "conf_field", "cfg_field", "register_select",
+                 "addr", "adr", "address", "reg_index"):
         return "register_address"
     if value in ("reg_wdata", "register_data", "cfg_data", "csr_wdata",
-                 "write_data", "wdata"):
+                 "write_data", "wdata", "rdata", "din", "dout", "data",
+                 "dat", "payload", "word"):
         return "register_data"
-    if re.match(r"^(?:d|data_?|wdata_?)\d+$", value):
+    if re.match(r"^(?:d|data_?|wdata_?|din_?|dout_?|payload_?|dat_?)\d+$", value):
         return "data_lane"
     if re.match(r"^(?:a|addr_?|vpn_?)\d+$", value):
         return "address_lane"
@@ -117,16 +121,19 @@ def _infer_role(name: str, description: str) -> str:
     if (value in ("id", "tag", "txn_id", "transaction_id", "request_id",
                   "req_id", "source_id") or value.endswith(("_id", "_tag"))):
         return "transaction_id"
-    if any(token in value for token in
-           ("length", "len", "count", "size", "beats", "burst_len")):
+    if (value in ("last", "eop", "last_beat", "last_word") or
+            any(token in value for token in
+                ("length", "len", "count", "size", "beats", "burst_len"))):
         return "length"
-    if (value == "be" or any(token in value for token in
-                             ("mask", "strobe", "strb", "byte_en",
-                              "byte_enable"))):
+    if (value == "be" or value in ("keep", "keeps", "strb_n") or
+            any(token in value for token in
+                ("mask", "strobe", "strb", "byte_en", "byte_enable"))):
         return "mask"
     if value in ("priority", "prio", "qos", "arbitration_class"):
         return "priority"
-    if value in ("select", "selector", "source", "destination", "dest"):
+    if value in ("select", "selector", "source", "destination", "dest",
+                 "grant", "gnt", "grant_id", "qid", "queue_id", "port",
+                 "port_id", "chan", "channel"):
         return "selector"
     if value in ("push", "enqueue", "enq", "put", "tx_push"):
         return "queue_push"
@@ -134,7 +141,8 @@ def _infer_role(name: str, description: str) -> str:
         return "queue_pop"
     if value in ("ack", "acknowledge", "response_ack", "irq_ack"):
         return "ack"
-    if value in ("interrupt", "irq", "irq_in", "int_in"):
+    if value in ("interrupt", "irq", "irq_in", "int_in", "irq_status",
+                 "int_status", "irq_out", "intr"):
         return "interrupt"
     if value in ("lock", "acquire", "lock_req", "reserve"):
         return "acquire"
@@ -145,7 +153,7 @@ def _infer_role(name: str, description: str) -> str:
     if any(token in value for token in
            ("wake", "wakeup", "sleep", "power_down", "powerdown", "clock_gate")):
         return "power"
-    if "ready" in value:
+    if "ready" in value or value in ("rdy", "rdyn", "rdy_out"):
         return "ready"
     if "stall" in value or "backpressure" in value:
         return "stall"
@@ -153,16 +161,21 @@ def _infer_role(name: str, description: str) -> str:
             "cancel" in value or value in
             ("fence", "invalidate", "invalidation", "satp", "root_change")):
         return "recovery"
-    if "valid" in value or value in ("start", "request", "req"):
+    if ("valid" in value or value in ("start", "request", "req", "vld",
+                                      "vld_in", "launch") or
+            re.match(r"^req\d*$", value) or re.match(r"^vld\d*$", value)):
         return "request"
-    if value in ("tick", "step", "advance") or "clock_enable" in value:
+    if (value in ("tick", "step", "advance", "clken", "clk_en", "cen") or
+            "clock_enable" in value or
+            (value.endswith("_en") and "clk" in value)):
         return "advance"
     if any(token in value for token in
            ("service", "kick", "feed", "trigger", "doorbell")):
         return "event"
     if any(token in value for token in ("fault", "error", "inject")):
         return "fault"
-    if value in ("enable", "en") or value.endswith("_enable"):
+    if (value in ("enable", "en", "cs", "cs_n", "csn", "chip_select",
+                  "select_n") or value.endswith(("_enable", "_csn"))):
         return "enable"
     return "scalar"
 

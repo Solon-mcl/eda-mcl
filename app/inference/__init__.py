@@ -85,6 +85,21 @@ def _infer_action_dims(spec: str, fields=None) -> int:
     return infer_action_dim(spec, fields)
 
 
+def _value_probes(minimum: int, maximum: int) -> list[int]:
+    """Legal values that tend to sit on coverage boundaries.
+
+    Schema-driven, not DUT-driven: the same probe set is applied to whatever
+    range the specification declares.
+    """
+    span = max(0, maximum - minimum)
+    probes = {minimum, maximum, 0, 1, minimum + 1, maximum - 1,
+              minimum + span // 2}
+    for pattern in (0xFF, 0xAA, 0x55, 0xFFFF, 0xFFFF0000, 0xAAAAAAAA,
+                    0xFFFFFFFF):
+        probes.add(pattern)
+    return sorted(value for value in probes if minimum <= value <= maximum)
+
+
 class _QueuePolicy:
     """Small run-length encoded action sequencer."""
 
@@ -194,6 +209,11 @@ class _GenericPolicy(_QueuePolicy):
         self.generic_trace_learning_enabled = os.environ.get(
             "EDA_GENERIC_TRACE_LEARNING", "1").lower() not in (
                 "0", "false", "no")
+        self.combinatorial_candidates_enabled = os.environ.get(
+            "EDA_COMBINATORIAL_CANDIDATES", "1").lower() not in (
+                "0", "false", "no")
+        self.combinatorial_min_pool = max(0, int(os.environ.get(
+            "EDA_COMBINATORIAL_MIN_POOL", "8")))
 
         role_indices = self.semantic_ir.indices
         reset_all = role_indices("reset")
@@ -1083,6 +1103,119 @@ class _GenericPolicy(_QueuePolicy):
                             f"capability.register.a{address}.v{value}",
                             tuple(steps),
                             {"family": "capability_register_sequence"}))
+        # Combinatorial candidates are a supply-side fallback: they only help
+        # when the schema-driven families produced a thin pool.  Stacking them
+        # on top of an already rich pool measurably dilutes the cycle budget
+        # (measured: DMA 82 -> 71 bins, SPI 72 -> 69), so the same kind of
+        # structural gate used elsewhere in this policy applies here too.
+        if (self.combinatorial_candidates_enabled and
+                len(candidates) < self.combinatorial_min_pool):
+            candidates.extend(self._build_combinatorial_candidates())
+        if not candidates:
+            # A sparse or unusually named schema can satisfy none of the
+            # structured builders.  Never leave the pool empty: the generic
+            # search layer must stay enabled, because the online search is
+            # what turns coarse candidates into useful ones.
+            candidates = self._build_fallback_candidates()
+        return candidates
+
+    def _build_combinatorial_candidates(self):
+        """Role x value-strategy x duration combinations.
+
+        The hand-written families above enumerate *named scenarios*; this
+        builder instead sweeps the cross product of *which roles the schema
+        exposes* and *which value perturbation to apply*.  Candidate coverage
+        then scales with the schema instead of with the author's imagination,
+        which is the property that matters on an unseen interface.
+
+        Priority sits below the native families so the hand-written shapes
+        keep their share of the cycle budget.
+        """
+        candidates = []
+        roles = (
+            ("addr", self.addr_lanes or self.pc_lanes),
+            ("data", self.data_lanes or self.target_lanes),
+            ("ctrl", self.op_indices or self.kind_indices or
+                     self.mode_indices),
+            ("raddr", self.register_address_indices),
+            ("rdata", self.register_data_indices),
+            ("sel", self.instance_select_indices),
+            ("len", self.length_indices),
+            ("mask", self.mask_indices),
+            ("prio", self.priority_indices),
+        )
+        anchors = list(dict.fromkeys(
+            self.valid_indices + self.write_enable_indices +
+            self.enable_indices + self.advance_indices))
+        for role, indices in roles:
+            if not indices:
+                continue
+            index = indices[0]
+            item = self.semantic_ir.field(index)
+            if item is None:
+                continue
+            minimum, maximum = int(item.minimum), int(item.maximum)
+            for value in _value_probes(minimum, maximum)[:5]:
+                for cycles in (1, 8):
+                    step = self._program_step({index: value}, cycles=cycles)
+                    candidates.append(SequenceCandidate(
+                        f"combo.{role}.v{value}.h{cycles}", (step,),
+                        {"family": "combinatorial_sweep", "priority": 6}))
+                    candidates.append(SequenceCandidate(
+                        f"combo.{role}.v{value}.h{cycles}.rep",
+                        (step, self._program_step(cycles=cycles), step),
+                        {"family": "combinatorial_sweep", "priority": 6}))
+            for anchor in anchors:
+                if anchor in indices:
+                    continue
+                steps = (self._program_step({index: maximum, anchor: 0}),
+                         self._program_step({anchor: 1}),
+                         self._program_step(cycles=16),
+                         self._program_step({anchor: 0}))
+                candidates.append(SequenceCandidate(
+                    f"combo.pair.{role}.a{anchor}", steps,
+                    {"family": "combinatorial_pair", "priority": 6}))
+        return candidates
+
+    def _build_fallback_candidates(self):
+        """Last-resort candidates for any controllable schema.
+
+        Every non-padding field is swept over its legal range and held for a
+        few cycles, and is optionally paired with whatever request / enable /
+        advance anchor the schema exposes.  Deliberately coarse.
+        """
+        candidates = []
+        fields = [item for item in self.semantic_ir.fields
+                  if item.role != "padding"][:12]
+        if not fields:
+            return candidates
+        anchors = list(dict.fromkeys(
+            self.valid_indices + self.enable_indices +
+            self.write_enable_indices + self.advance_indices +
+            self.event_indices + self.instance_select_indices))
+        for item in fields:
+            low, high = int(item.minimum), int(item.maximum)
+            values = sorted({low, high, 0, (low + high) // 2})
+            for value in values:
+                if value < low or value > high:
+                    continue
+                for hold in (2, 16):
+                    steps = (self._program_step({item.index: value}),
+                             self._program_step(cycles=hold))
+                    candidates.append(SequenceCandidate(
+                        f"fallback.sweep.f{item.index}.v{value}.h{hold}",
+                        steps, {"family": "fallback_field_sweep",
+                                "priority": 20}))
+            for anchor in anchors:
+                if anchor == item.index:
+                    continue
+                steps = (self._program_step({anchor: 1, item.index: high}),
+                         self._program_step(cycles=8),
+                         self._program_step({anchor: 0}),
+                         self._program_step(cycles=2))
+                candidates.append(SequenceCandidate(
+                    f"fallback.pair.a{anchor}.f{item.index}", steps,
+                    {"family": "fallback_pair", "priority": 20}))
         return candidates
 
     def _expand_generic_sequence_gains(self, gains):
