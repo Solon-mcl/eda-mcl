@@ -260,10 +260,17 @@ class _GenericPolicy(_QueuePolicy):
         self.stall_indices = role_indices("stall")
         self.flush_indices = role_indices("recovery")
         self.pad_indices = role_indices("padding")
-        self.addr_lanes = self._lane_indices((r"^a(\d+)$", r"^addr_?(\d+)$",
-                                              r"^vpn_?(\d+)$"))
-        self.data_lanes = self._lane_indices((r"^d(\d+)$", r"^data_?(\d+)$",
-                                             r"^wdata_?(\d+)$"))
+        # Lane grouping must accept exactly the names _infer_role accepts as
+        # lane roles; keeping a second, narrower pattern set here silently
+        # dropped valid lanes from every role-driven candidate.
+        self.addr_lanes = self._lane_indices(
+            (r"^a(\d+)$", r"^va_?(\d+)$", r"^pa_?(\d+)$", r"^addr_?(\d+)$",
+             r"^vaddr_?(\d+)$", r"^paddr_?(\d+)$", r"^vpn_?(\d+)$",
+             r"^virt_?(\d+)$", r"^phys_?(\d+)$"))
+        self.data_lanes = self._lane_indices(
+            (r"^d(\d+)$", r"^data_?(\d+)$", r"^wdata_?(\d+)$",
+             r"^din_?(\d+)$", r"^dout_?(\d+)$", r"^payload_?(\d+)$",
+             r"^dat_?(\d+)$"))
         self.pc_lanes = self._lane_indices((r"^p(\d+)$", r"^pc_?(\d+)$"))
         self.target_lanes = self._lane_indices((r"^t(\d+)$",
                                                r"^target_?(\d+)$"))

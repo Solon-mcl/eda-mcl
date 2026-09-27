@@ -77,7 +77,7 @@ def _description_for(spec: str, name: str) -> str:
 def _infer_role(name: str, description: str) -> str:
     value = name.lower()
     text = (value + " " + description).lower()
-    if value.startswith("pad") or "reserved" in text or "占位" in text:
+    if value.startswith(("pad", "rsv", "spare", "dummy", "unused")) or "reserved" in text or "占位" in text:
         return "padding"
     if "reset" in value or value.startswith("rst"):
         return "reset"
@@ -102,7 +102,7 @@ def _infer_role(name: str, description: str) -> str:
         return "register_data"
     if re.match(r"^(?:d|data_?|wdata_?|din_?|dout_?|payload_?|dat_?)\d+$", value):
         return "data_lane"
-    if re.match(r"^(?:a|addr_?|vpn_?)\d+$", value):
+    if re.match(r"^(?:a|va_?|pa_?|addr_?|vaddr_?|paddr_?|vpn_?|virt_?|phys_?)\d+$", value):
         return "address_lane"
     if re.match(r"^(?:p|pc_?)\d+$", value):
         return "pc_lane"
@@ -114,9 +114,9 @@ def _infer_role(name: str, description: str) -> str:
         return "mode"
     if value in ("asid", "context_id", "context", "address_space_id"):
         return "context_id"
-    if value in ("priv", "privilege", "priv_mode", "mode_user"):
+    if value in ("priv", "privilege", "priv_mode", "mode_user", "lvl", "level", "ring"):
         return "privilege"
-    if value in ("global", "global_entry", "shared", "scope"):
+    if value in ("global", "global_entry", "shared", "scope", "glb", "glob", "gs"):
         return "scope"
     if (value in ("id", "tag", "txn_id", "transaction_id", "request_id",
                   "req_id", "source_id") or value.endswith(("_id", "_tag"))):
@@ -155,10 +155,10 @@ def _infer_role(name: str, description: str) -> str:
         return "power"
     if "ready" in value or value in ("rdy", "rdyn", "rdy_out"):
         return "ready"
-    if "stall" in value or "backpressure" in value:
+    if "stall" in value or "backpressure" in value or value in ("hold", "holdoff", "bp", "throttle"):
         return "stall"
     if ("flush" in value or "recover" in value or "abort" in value or
-            "cancel" in value or value in
+            "cancel" in value or "fence" in value or "invalidate" in value or "satp" in value or "root" in value or value in
             ("fence", "invalidate", "invalidation", "satp", "root_change")):
         return "recovery"
     if ("valid" in value or value in ("start", "request", "req", "vld",
