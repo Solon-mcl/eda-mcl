@@ -392,3 +392,23 @@ request / data 字段），不满足的接口自动保持上一版行为，不�
    判定无效并中断）。
 9. **在线结构探测默认关闭**：local 5k 上 AUC 小涨、verilator 30k 上 spi_xfer 掉 11 bins；
    且它要撤销门控去启用的模板本身是按 DMA 结构写的，违反"不引入家族专用知识"。见 §4.7。
+10. **泛化证据的强度（2026-09-27 审计）—— 这是最该盯着的一条**：
+    「不依赖家族知识」已做到且可验证；「对任意未见 DUT 有效」**尚无证据**。
+    7 个 DUT 全部来自本仓库，合成语料与 spec 变体都是本项目自己写的 —— 等于用自定义的
+    "风格多样性"测自己。**从未在任何独立来源的未见 DUT 上跑过**，闭环缺一个外部样本。
+    审计中还查出两处家族知识残留并已清除（描述规则里的字面短语 `"tlb fence"`、
+    `kind_indices` 里的 `"branch_kind"` 死别名）；**仍有一处未决**：`deepseek_planner.py`
+    的 `KNOWN_FAMILIES = {dma, spi_master, spi_xfer, generic}` 与 prompt 的 `family_hint`
+    取值表（默认关闭，未启用）。
+11. **剩余缺口的机制是"驱动不到 / 写不准"，不是"认不出电路"**（30k verilator 实测缺 bin 分型）：
+
+    | DUT | sequential | cross | boundary | basic | condition |
+    |---|---|---|---|---|---|
+    | spi_master | **4/4（100% 全缺）** | 11/16（69%） | 19/47（40%） | 8/27 | 3/26 |
+    | spi_xfer | 7/10（70%） | 7/20（35%） | 7/30（23%） | 2/18 | 1/8 |
+
+    缺的名字集中在两类：`fsm_state.hold_ss / mwpop / wait_ready / clear_ready`（**多周期协议
+    中间态**，要把 DUT 驱动到特定状态）与 `protocol_mode.spi1 / ssp`、`tmod.tmod_1`、
+    `eff_dfs_boundary.dfs_*`、`baud_div_boundary.baudr_1`（**寄存器字段写入精度**，必须写进
+    特定位域且取到边界值）。后一类正是联合候选该解决的，但 spi_master 16 个 cross bin 只
+    编译出 7 个联合候选 —— **位域反查只覆盖了一部分条件**，这是下一步最具体的着力点。
