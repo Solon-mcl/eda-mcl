@@ -53,6 +53,16 @@ random/greedy 基线时加载。
 | `dependencies` | `requires` / `write_condition` / `after` / `before` |
 | `timing_constraints` | "A 之后 B 需 N~M 周期" |
 
+**角色判定的规则**：拿「字段名 + 该名字在说明书里出现的所有句子」当文本，按一条
+**从上到下、命中即停**的优先级链匹配。命名容错是泛化的第一道门槛，因此表里同时收录
+全名（`write_enable`）、全文短形式（`we` / `wr` / `re` / `rd` / `cs_n` / `rdy` / `vld`）、
+无编号形式（`addr` / `adr` / `data` / `din` / `dout` / `payload`）与业务同义词
+（`grant` / `qid` / `chan` / `port` / `last` / `eop` / `keep` / `clk_en`）。
+
+**依赖抽取只保留可执行的那部分**：从散文里抽出的 `X requires Y` 会先过滤 —— 至少一侧
+必须是已声明的动作字段。实测表明，未过滤前 7 个 DUT 抽出的依赖 **100% 是自然语言噪音**
+（例如 `accesses requires the`），过滤后全部归零。
+
 ### 4.2 Coverage Target IR（`coverage_targets.py`）
 
 读同目录 `coverage_meta.json`，把每个 bin 展平成一个 `CoverageTargetIR`：
@@ -90,6 +100,17 @@ bin ↔ 动作字段的带证据边：signal 与字段**精确同名** → `dire
 
 有显式 `seq`/temporal 目标且能生成原生候选 → `generic_sequence_immediate = True`，立即进入搜索；
 否则兜底候选只在停滞时逐个投放。
+
+### 4.6 候选池的两道保险（泛化关键）
+
+| 机制 | 触发条件 | 作用 |
+|---|---|---|
+| **零候选兜底** | 候选池为空 | 对每个非填充字段做合法值扫描 + 与请求/使能锚点配对。保证「候选数 ≥ 1」是硬保证 —— 上一版在 4 个假想 spec 里有 3 个候选数为 0，整条搜索链直接失效 |
+| **组合候选** | 候选池 < `EDA_COMBINATORIAL_MIN_POOL`（默认 8） | 按 `{角色} × {值策略} × {时长}` 生成，并额外覆盖**角色未识别出来**的字段。覆盖度由说明书暴露的角色决定，而不是由人工枚举的候选族决定 |
+
+组合候选**只在候选池贫瘠时启用**，这是实测结论：在候选池已经充足的 DUT 上叠加组合候选
+会稀释周期预算（DMA 82→71、SPI 72→69），因为搜索层是「未执行的候选优先」，一次性候选
+会挤掉有效候选的重试机会。
 
 ## 5. 在线循环
 
@@ -218,6 +239,8 @@ request / data 字段），不满足的接口自动保持上一版行为，不�
 | `EDA_ROBUST_FIELD_WRITES` / `EDA_FIELD_WRITE_REPEATS` | `--robust-field-writes` / `--field-write-repeats` | **开** / 16（M6） |
 | `EDA_GENERIC_SEQUENCE_SEARCH` | `--generic-sequence-search on/off` | **开**（M8） |
 | `EDA_GENERIC_TRACE_LEARNING` | `--generic-trace-learning on/off` | **开**（M8.1） |
+| `EDA_COMBINATORIAL_CANDIDATES` | —— | **开**（泛化加固） |
+| `EDA_COMBINATORIAL_MIN_POOL` | —— | 8（候选池低于此值才补组合候选） |
 
 即：**默认提交配置 = M8.1**。实验 JSON 每条记录都写 `algorithm_variant`，不靠文件名推断配置。
 
@@ -249,6 +272,20 @@ request / data 字段），不满足的接口自动保持上一版行为，不�
 **移除神经覆盖控制器后的回归**（`results/coverage_controller_removal_regression_5k.json`）：
 同样 7 个 DUT 逐位一致，`predict()` P99 仍低于 1.3 ms。
 
+### 解析泛化指标（`tools/check_parsing_generalization.py`）
+
+用 `synthesis/spec_corpus.py` 的 26 个合成 spec（覆盖寄存器 / 流式 / 队列 / 仲裁 / 地址翻译 /
+状态机 6 类接口风格，以及全名 / 缩写 / 无编号 / 无意义命名 4 类命名风格，含 4 个退化用例）：
+
+| 指标 | 加固前 | 加固后 |
+|---|---|---|
+| 字段角色召回 | 79.3%（69/87） | **100%（87/87）** |
+| 候选产出达标率 | 50.0%（13/26） | **100%（26/26）** |
+| 候选数为 0 的条目 | 13/26 | **0/26** |
+| 平均候选数 | 6.9 | 48.6 |
+
+同一批改动下，7 个自带 DUT 的 5k local 回归**逐位一致**（含 103 个字段的角色判定零变化）。
+
 ## 14. 已知边界
 
 1. **公开包与赛题原文的 DUT 对不上**：题面是 AES / SPI 主设备 / 温控，仓库里是 DMA / SPI master / SPI xfer。当前所有数字只能当开发证据，正式镜像到手后必须重审计重跑。
@@ -256,3 +293,6 @@ request / data 字段），不满足的接口自动保持上一版行为，不�
 3. **DMA local 85/92 vs RTL 92/92**：Python 模型与 RTL 在 hold/写接受时序上存在差异，以 RTL 结果为准。
 4. **M8 的"通用性"是候选生成与反馈规则不依赖已知家族**，不等于已验证对任意未见接口有效；TLB 上的 78/78 是唯一的第四类结构证据，样本仍偏少。
 5. **推理路径已不含任何 DUT 家族判定**：M7 序列、旧专家策略与家族路由 MLP 均已移除。若将来需要「性能上界」对照，可从 git 提交 `3a53a95` 取回。
+6. **能力仍取决于说明书的结构化程度**：寄存器地图只被 SPI 系用上（DMA 的 spec 里连 `0x` 都没有），
+   联合候选因此在 DMA 上为 0。角色判定已对命名容错，但"地址 + 位域"这类信息若只以散文出现，
+   仍无法恢复。

@@ -1147,7 +1147,15 @@ class _GenericPolicy(_QueuePolicy):
         anchors = list(dict.fromkeys(
             self.valid_indices + self.write_enable_indices +
             self.enable_indices + self.advance_indices))
-        for role, indices in roles:
+        classified = {index for _role, indices in roles for index in indices}
+        # Fields whose role could not be recovered still declare a legal
+        # range.  Sweeping them beats treating the parse as complete: the
+        # point of this builder is to hand the online search a hypothesis
+        # space, not to commit to a reading of the specification.
+        extra = [(f"unknown{i}", [item.index])
+                 for i, item in enumerate(self.semantic_ir.fields)
+                 if item.role == "scalar" and item.index not in classified][:4]
+        for role, indices in tuple(roles) + tuple(extra):
             if not indices:
                 continue
             index = indices[0]

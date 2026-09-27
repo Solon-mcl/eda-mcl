@@ -393,12 +393,13 @@ def _clean_symbol(value: str) -> str:
     return value.strip().strip("`'\".,:;，。；").lower()
 
 
-def _parse_structured_constraints(spec: str):
+def _parse_structured_constraints(spec: str, field_names=()):
     constraints = []
     dependencies = []
     timings = []
     seen_constraints = set()
     seen_dependencies = set()
+    known = {str(name).lower() for name in field_names}
     identifier = r"`?([A-Za-z_][A-Za-z0-9_]*)`?"
     operand = rf"(?:{_NUMBER}|`?[A-Za-z_][A-Za-z0-9_]*`?)"
     comparison = re.compile(
@@ -456,6 +457,12 @@ def _parse_structured_constraints(spec: str):
                                    re.search(r"(?:write|写|(?:^|_)w(?:r|e)(?:_|\b))",
                                              f"{operation} {line}", re.IGNORECASE)
                                    else "requires")
+            # Free-form prose yields spurious pairs such as
+            # "accesses requires the".  Keep a dependency only when at least
+            # one side is a declared action field, which is the only case the
+            # executor can actually act on.
+            if known and operation not in known and prerequisite not in known:
+                continue
             key = (operation, prerequisite, actual_relation)
             if key not in seen_dependencies:
                 dependencies.append(DependencyIR(operation, prerequisite,
@@ -487,7 +494,8 @@ def build_semantic_ir(spec: str) -> DutSemanticIR:
                       "低有效" in description)
         fields.append(FieldIR(name, index, role, minimum, maximum, width,
                               active_low, _parse_enums(description), description))
-    constraints, dependencies, timings = _parse_structured_constraints(spec)
+    constraints, dependencies, timings = _parse_structured_constraints(
+        spec, names)
     return DutSemanticIR(dims, fields, _parse_registers(spec), constraints,
                          dependencies, timings, _parse_packed_fields(spec),
                          declared_dim=declared)
