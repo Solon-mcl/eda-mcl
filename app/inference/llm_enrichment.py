@@ -83,6 +83,7 @@ class EnrichmentHints:
                 "sequences": len(self.sequences),
             },
             "sequences_switch": self.status.get("sequences_enabled"),
+            "thinking": self.status.get("thinking"),
             "rejected": len(self.rejected),
             "rejected_sample": self.rejected[:8],
         }
@@ -107,6 +108,13 @@ class LLMEnricher:
         # recovered as "not a JSON object", silently yielding zero hypotheses.
         self.max_tokens = min(16384, max(1024, int(os.environ.get(
             "EDA_LLM_ENRICH_MAX_TOKENS", "8192"))))
+        # Chain-of-thought tokens are billed against the same max_tokens budget,
+        # so an 8192 cap that is comfortable without thinking truncates with it.
+        # Measured: EDA_LLM_THINKING=1 on SPI-master returned completion_tokens
+        # == 8192 and zero hypotheses on 1 of 3 seeds.  Reserve headroom rather
+        # than let the switch silently destroy the answer.
+        self.thinking_reserve = max(0, int(os.environ.get(
+            "EDA_LLM_THINKING_RESERVE", "6144")))
         # Sequence hypotheses put programs into the flat candidate pool, which
         # is swept rather than budgeted.  Measured on SPI-xfer (which receives
         # no joint hints, only sequences): 56 -> 38/46/47 bins over three seeds,
@@ -329,12 +337,15 @@ Rules:
         if not self.enabled:
             return EnrichmentHints()
         started = time.perf_counter()
+        budget = self.max_tokens
+        if self.planner.thinking == "enabled":
+            budget = min(16384, budget + self.thinking_reserve)
         content, status = self.planner.request_json(
             system=("You extract verified hardware-interface facts from a "
                     "specification. Obey the requested JSON schema exactly and "
                     "never invent field or target names."),
             prompt=self._prompt(spec, ir, list(targets or ()), set()),
-            max_tokens=self.max_tokens,
+            max_tokens=budget,
             # This feature has its own switch; the planner's DEEPSEEK_ENABLED
             # stays independent so either can be used without the other.
             force=True)
@@ -345,6 +356,7 @@ Rules:
         hints.status = dict(status)
         hints.status["latency_s"] = time.perf_counter() - started
         hints.status["model"] = self.planner.model
+        hints.status["thinking"] = self.planner.thinking
         hints.status["sequences_enabled"] = self.sequences_enabled
         usage = hints.status.get("usage") or {}
         requested = int(hints.status.get("max_tokens") or 0)

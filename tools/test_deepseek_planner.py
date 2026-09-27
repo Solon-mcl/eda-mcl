@@ -34,8 +34,10 @@ class FakeResponse:
 def main():
     previous = os.environ.get("DEEPSEEK_API_KEY")
     previous_enabled = os.environ.get("DEEPSEEK_ENABLED")
+    previous_model = os.environ.get("EDA_LLM_MODEL")
     os.environ["DEEPSEEK_API_KEY"] = "test-only-not-a-secret"
     os.environ["DEEPSEEK_ENABLED"] = "1"
+    os.environ.pop("EDA_LLM_MODEL", None)
     observed = {}
 
     def opener(request, timeout):
@@ -64,7 +66,14 @@ def main():
     assert plan["family_hint"] == "generic" and plan["action_dim"] == 3
     assert len(plan["program"]) == 2  # malformed action was rejected
     assert observed["url"].endswith("/chat/completions")
-    assert observed["request"]["model"] == "deepseek-v4-pro"
+    # Assert the *env chain* rather than a pinned name: the default model is a
+    # measurement-driven choice and will change, and a hardcoded string turns
+    # that change into a red test instead of a visible diff.
+    assert observed["request"]["model"] == planner.model
+    assert planner.model, "a model id must always be resolved"
+    os.environ["EDA_LLM_MODEL"] = "model-under-test"
+    assert DeepSeekPlanner(opener=opener).model == "model-under-test"
+    os.environ.pop("EDA_LLM_MODEL", None)   # restored for real at the end
     assert observed["request"]["response_format"] == {"type": "json_object"}
     assert observed["authorization"].startswith("Bearer ")
 
@@ -83,6 +92,10 @@ def main():
         os.environ.pop("DEEPSEEK_ENABLED", None)
     else:
         os.environ["DEEPSEEK_ENABLED"] = previous_enabled
+    if previous_model is None:
+        os.environ.pop("EDA_LLM_MODEL", None)
+    else:
+        os.environ["EDA_LLM_MODEL"] = previous_model
     base = ROOT / "public_duts/spi_xfer_public/spi_xfer_public/dut"
     agent = InferenceInterface(str(base / "dut_spec.md"),
                                str(base / "covergroup.svh"))
@@ -91,6 +104,7 @@ def main():
     assert action.shape == (12,)
     print(json.dumps({
         "mock_api": status, "validated_program_actions": len(plan["program"]),
+        "default_model": planner.model,
         "fallback_status": agent.llm_status["status"],
         "fallback_action_dim": int(action.size),
     }, indent=2))

@@ -69,9 +69,13 @@ class DeepSeekPlanner:
         self.base_url = _first_env(
             "DEEPSEEK_BASE_URL", "LLM_BASE_URL", "OPENAI_BASE_URL",
             default="https://api.deepseek.com")
+        # Default chosen by measurement, not by size: the endpoint serves
+        # deepseek-flash and deepseek-v4-pro, and flash produced the accepted
+        # joint hypotheses behind the +13-bin result.  Override with
+        # EDA_LLM_MODEL when a different model is worth A/B-ing.
         self.model = _first_env(
             "EDA_LLM_MODEL", "DEEPSEEK_MODEL", "LLM_MODEL",
-            default="deepseek-v4-pro")
+            default="deepseek-flash")
         # Sampling.  The enricher is evaluated as a component, so the same
         # specification has to give the same hypotheses across runs; the caller
         # can raise this for a diversity sweep.

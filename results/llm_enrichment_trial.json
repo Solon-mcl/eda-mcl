@@ -13,7 +13,9 @@
  "note": "One request per construction. predict() never touches the network; an unreachable endpoint leaves the policy exactly equal to the no-hints policy (asserted offline).",
  "switch_defaults": {
   "EDA_LLM_ENRICH": 0,
-  "EDA_LLM_SEQUENCES": 0
+  "EDA_LLM_SEQUENCES": 0,
+  "EDA_LLM_MODEL": "deepseek-flash (was deepseek-v4-pro)",
+  "EDA_LLM_THINKING": "0"
  },
  "ablation_5k_local": {
   "spi_master_public": {
@@ -134,7 +136,145 @@
  "defects_found_and_fixed": [
   "LLM joint candidates were merged before the gates that read their count: six hints took SPI-master from 7 to 13, disabling M4 ranking and tripping the generated-family gate.  Measured -1 before the fix, +9 after.",
   "EDA_LLM_MODEL was read by the recorder but not the client, so asking for flash silently used v4-pro.",
-  "A truncated answer reported status ok with zero hypotheses: completion_tokens == max_tokens (4096) is now reported as truncated."
+  "A truncated answer reported status ok with zero hypotheses: completion_tokens == max_tokens (4096) is now reported as truncated.",
+  {
+   "defect": "thinking tokens were billed against a budget sized for non-thinking output",
+   "symptom": "EDA_LLM_THINKING=1 returned completion_tokens == 8192 and zero hypotheses on 1 of 3 seeds while still reporting a response",
+   "fix": "the enricher reserves EDA_LLM_THINKING_RESERVE (default 6144) of extra budget when thinking is on, and the audit record now carries the thinking mode so a run is self-describing",
+   "outcome": "truncation gone, but the larger budget then exceeded the timeout; thinking remains off by default on the measurements above"
+  }
  ],
- "zero_regression": "7/7 bundled DUTs bit-identical at 5k local with the enricher wired in and off"
+ "zero_regression": "7/7 bundled DUTs bit-identical at 5k local with the enricher wired in and off",
+ "model_default": "deepseek-flash",
+ "thinking_ablation_5k_local": {
+  "dut": "spi_master_public",
+  "seeds": [
+   260923,
+   260924,
+   260925
+  ],
+  "note": "Same prompt, same accepted-hypothesis count when the request completes; the difference is entirely about completing. Chain-of-thought tokens are billed against max_tokens, so thinking needs both a larger budget and a longer timeout, and still does not produce more hypotheses.",
+  "baseline_off": [
+   72,
+   72,
+   72
+  ],
+  "thinking_off": {
+   "covered": [
+    82,
+    81,
+    81
+   ],
+   "delta": [
+    10,
+    9,
+    9
+   ],
+   "mean_delta": 9.33,
+   "auc": [
+    0.555,
+    0.5792,
+    0.5792
+   ],
+   "accepted": {
+    "field_roles": 0,
+    "joint_writes": 6,
+    "sequences": 0
+   },
+   "rejected": [
+    18,
+    18,
+    18
+   ],
+   "status": [
+    "ok",
+    "ok",
+    "ok"
+   ]
+  },
+  "thinking_on_budget_8192": {
+   "covered": [
+    83,
+    72,
+    83
+   ],
+   "delta": [
+    11,
+    0,
+    11
+   ],
+   "mean_delta": 7.33,
+   "auc": [
+    0.5925,
+    0.4967,
+    0.5925
+   ],
+   "accepted": [
+    {
+     "field_roles": 0,
+     "joint_writes": 6,
+     "sequences": 0
+    },
+    {
+     "field_roles": 0,
+     "joint_writes": 0,
+     "sequences": 0
+    },
+    {
+     "field_roles": 0,
+     "joint_writes": 6,
+     "sequences": 0
+    }
+   ],
+   "status": [
+    "ok",
+    "truncated",
+    "ok"
+   ],
+   "reading": "completion_tokens hit the cap exactly, so seed 260924 got zero hypotheses and therefore zero gain"
+  },
+  "thinking_on_budget_12288": {
+   "covered": [
+    79,
+    72,
+    72
+   ],
+   "delta": [
+    7,
+    0,
+    0
+   ],
+   "mean_delta": 2.33,
+   "auc": [
+    0.5342,
+    0.4967,
+    0.4967
+   ],
+   "accepted": [
+    {
+     "field_roles": 0,
+     "joint_writes": 6,
+     "sequences": 0
+    },
+    {
+     "field_roles": 0,
+     "joint_writes": 0,
+     "sequences": 0
+    },
+    {
+     "field_roles": 0,
+     "joint_writes": 0,
+     "sequences": 0
+    }
+   ],
+   "status": [
+    "ok",
+    "error_TimeoutError",
+    "error_TimeoutError"
+   ],
+   "reading": "with headroom the request no longer truncates but exceeds the 45 s timeout on 2 of 3 seeds; the completing seed scored +7, worse than thinking-off's +10 on the same seed"
+  },
+  "conclusion": "Thinking stays off. It is worse on every axis measured: no more hypotheses (still 6 joint writes), lower and far more variable gain (+2.33 vs +9.33 mean, and +7 vs +10 on the one seed both configurations completed), plus two new silent failure modes - truncation and timeout.",
+  "fail_closed_confirmed_live": "The timeout seeds produced covered == the enricher-off baseline exactly (72/120, AUC 0.4967), which is the offline fail-closed property observed on the real endpoint rather than under a fake opener."
+ }
 }
