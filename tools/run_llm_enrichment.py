@@ -158,6 +158,8 @@ def apply_api_key_file(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dut", default="spi_master_public", choices=sorted(DUTS))
+    parser.add_argument("--backend", default="local",
+                        choices=["local", "verilator"])
     parser.add_argument("--steps", type=int, default=5000)
     parser.add_argument("--seeds", default="260923,260924,260925",
                         help="comma-separated seeds; a single seed cannot "
@@ -188,11 +190,14 @@ def main():
         raise SystemExit("refusing to compare: the enricher made no request")
     seeds = [int(value) for value in args.seeds.split(",") if value.strip()]
     print()
-    print("local %d steps, %s, %d seed(s)" % (args.steps, args.dut, len(seeds)))
+    print("%s %d steps, %s, %d seed(s)" % (
+        args.backend, args.steps, args.dut, len(seeds)))
     deltas = []
     for seed in seeds:
-        off = run_episode(args.dut, base, args.steps, False, seed=seed)
-        on = run_episode(args.dut, base, args.steps, True, seed=seed)
+        off = run_episode(args.dut, base, args.steps, False, seed=seed,
+                          backend=args.backend)
+        on = run_episode(args.dut, base, args.steps, True, seed=seed,
+                         backend=args.backend)
         delta = on["covered_bins"] - off["covered_bins"]
         deltas.append(delta)
         print("  seed %-8d off %3d/%d (auc %.4f)   on %3d/%d (auc %.4f)   %+d"

@@ -254,6 +254,36 @@ request / data 字段），不满足的接口自动保持上一版行为，不�
 |---|---|---|
 | `UniversalOptionModel` | 线性 `features → 4 option`，特征为 IR 角色计数、目标类型计数、难度权重与预算进度 | **当前 `approved=False`，运行时返回全 0，不生效** |
 | `DeepSeekPlanner` | OpenAI 兼容客户端，`__init__` 一次调用，JSON schema 校验 + 范围/维度/有限性校验 | **默认禁用**（需 `DEEPSEEK_ENABLED=1` + key）。失败/超时/不合法响应一律降级为纯本地策略；逐周期路径不碰网络 |
+| `LLMEnricher` | 同上传输层，构造期一次请求，产出**可校验的结构化假设** | **默认禁用**（需 `EDA_LLM_ENRICH=1` + key）。见 §10.1 |
+
+### 10.1 LLM 富化：模型提假设，算术与覆盖率裁决（2026-09-27）
+
+局部解析器是关键字驱动的，它能从命名和散文里恢复角色，但**不能推理**一个没见过的接口。
+实测缺口恰好都是这一类：spi_master 的 16 个 cross bin **只编译出 7 个**、4 个 sequential
+bin 全缺、残留的角色召回缺口是关键字表没预料到的散文。`LLMEnricher` 只针对这三件事提问。
+
+**三道边界（都是硬性的）**
+
+| 边界 | 做法 |
+|---|---|
+| 网络 | 只在构造期发一次请求；`predict()` 永不碰网络（离线测试断言 opener 未被调用） |
+| 范围 | 逐项校验：字段必须已声明、角色必须在 `SEMANTIC_ROLES`(38) 内、地址必须在寄存器地图内、值 ≤ 2³²−1、序列步长与总长有上限。**胡说的寄存器到不了 DUT** |
+| 淘汰 | 候选级假设交给在线搜索，按覆盖率两次无收益即淘汰 |
+
+**两类假设、两种命运（实测）**
+
+| 假设 | 去处 | 结果 |
+|---|---|---|
+| `joint_writes` | 走**已有的、预算感知的**联合候选路径 | **spi_master 5k：72 → 81/81/83（3 seed，均值 +9.67）；30k：见 §13** |
+| `sequences` | 进**扁平候选池**（被扫描而非被预算） | **spi_xfer 5k：56 → 38/46/47（3 seed，均值 −12.3）** |
+
+消融（只开 joint）：spi_master **+9.67**，spi_xfer **+0.00**。结论：**增益全来自 joint，
+伤害全来自序列**，故 `EDA_LLM_SEQUENCES` 默认关闭并把这次测量记在代码旁边。
+
+**一条设计教训（我踩过）**：LLM 的 joint 候选最初是**先合并、后算门控**，于是 spi_master 的
+联合候选从 7 变 13，**越过了 M4 排序器的 ≤8 阈值**、又触发了我自己那条"联合路径不可用"的
+生成候选门控 —— 一个假设偷偷改掉了两个已标定的决定，第一次 A/B 测出来是 **−1**。
+改成**门控先算、LLM 候选后追加**（与生成候选族同一模式）后变成 **+9**。
 
 ### 已移除：神经覆盖控制器（2026-09-26）
 
@@ -292,6 +322,13 @@ request / data 字段），不满足的接口自动保持上一版行为，不�
 | `EDA_COMBINATORIAL_MIN_POOL` | —— | 8（候选池低于此值才补组合候选；设很大可强制"总是补"用于 A/B） |
 | `EDA_INTERFACE_PROBE` | —— | **关**（在线结构探测，见下） |
 | `EDA_INTERFACE_PROBE_MIN_ROLES` | —— | 3（探测所需的最少接口角色数） |
+| `EDA_LLM_ENRICH` | —— | **关**（LLM 富化，见 §10.1；需 key） |
+| `EDA_LLM_SEQUENCES` | —— | **关**（序列假设，实测有害，见 §10.1） |
+| `EDA_LLM_MODEL` | —— | `deepseek-v4-pro`（该端点实际只提供 `deepseek-flash` 与 `deepseek-v4-pro`） |
+| `EDA_LLM_THINKING` | —— | 关（位域推理可试开） |
+| `EDA_LLM_TEMPERATURE` | —— | 0 |
+| `EDA_LLM_ENRICH_MAX_TOKENS` | —— | 8192（撞上限即判 `truncated`） |
+| `DEEPSEEK_ENABLED` | —— | **关**（旧的程序规划器；与 `EDA_LLM_ENRICH` 相互独立） |
 
 即：**默认提交配置 = M8.1**。实验 JSON 每条记录都写 `algorithm_variant`，不靠文件名推断配置。
 
@@ -335,6 +372,25 @@ request / data 字段），不满足的接口自动保持上一版行为，不�
 
 **移除神经覆盖控制器后的回归**（`results/coverage_controller_removal_regression_5k.json`）：
 同样 7 个 DUT 逐位一致，`predict()` P99 仍低于 1.3 ms。
+
+### LLM 富化实测（`results/llm_enrichment_trial.json`，deepseek-flash）
+
+消融：**只开 joint** vs **joint+序列** vs 基线。
+
+| DUT | 后端/规模 | 基线 | 只开 joint | joint+序列 |
+|---|---|---|---|---|
+| **spi_master** | local 5k ×3 seed | 72/120 | **81/81/83（均值 +9.67）** | 81/81/81（+9.0） |
+| **spi_master** | local 30k | 75/120 | **88/120（+13）** | — |
+| **spi_master** | **verilator 30k** | 75/120（AUC 0.5829） | **88/120（+13，AUC 0.6853）** | — |
+| spi_xfer | local 5k ×3 seed | 56/86 | **+0.00** | 38/46/47（**−12.3**） |
+| dma / cache / branch / watchdog / tlb | local 5k | — | **全部 +0** | — |
+
+两条结论：
+
+1. **增益全部来自 `joint_writes`**：spi_master +9.67（5k）/ +13（30k，RTL 同样 +13）。
+2. **伤害全部来自 `sequences`**：spi_xfer 只拿到序列、没拿到 joint，−12.3。故序列默认关。
+
+**零回归**：富化接线但关闭时，7 个自带 DUT 5k local **逐位一致**。
 
 ### 解析泛化指标（`tools/check_parsing_generalization.py`）
 
@@ -400,7 +456,13 @@ request / data 字段），不满足的接口自动保持上一版行为，不�
     `kind_indices` 里的 `"branch_kind"` 死别名）；**仍有一处未决**：`deepseek_planner.py`
     的 `KNOWN_FAMILIES = {dma, spi_master, spi_xfer, generic}` 与 prompt 的 `family_hint`
     取值表（默认关闭，未启用）。
-11. **剩余缺口的机制是"驱动不到 / 写不准"，不是"认不出电路"**（30k verilator 实测缺 bin 分型）：
+11. **LLM 的收益目前只在一个 DUT 上被证实**：spi_master +9.67(5k)/+13(30k RTL)，
+    其余 6 个 DUT **全部 +0**（其中 5 个模型根本没给出可接受的 joint 假设，watchdog 给了 7 条但无收益）。
+    所以正确的读法是"**对存在寄存器地图、且位域反查有缺口**的 DUT 有效"，不是"LLM 普遍有效"。
+    另外 `sequences` 类假设实测有害（spi_xfer −12.3），已默认关闭。
+12. **LLM 依赖网络**：评分环境若不可达，富化会退化为纯本地策略（离线测试断言此时候选池与
+    无提示时完全相同），所以开着不会变差；但没有网络就等于这条能力不存在。
+13. **剩余缺口的机制是"驱动不到 / 写不准"，不是"认不出电路"**（30k verilator 实测缺 bin 分型）：
 
     | DUT | sequential | cross | boundary | basic | condition |
     |---|---|---|---|---|---|

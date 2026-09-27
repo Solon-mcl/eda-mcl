@@ -1,0 +1,140 @@
+{
+ "generated": "2026-09-27",
+ "endpoint": "https://api.deepseek.com",
+ "models_available": [
+  "deepseek-flash",
+  "deepseek-v4-pro"
+ ],
+ "model_used": "deepseek-flash",
+ "temperature": 0,
+ "thinking": "disabled",
+ "prompt_chars": 11977,
+ "prompt_tokens": 6032,
+ "note": "One request per construction. predict() never touches the network; an unreachable endpoint leaves the policy exactly equal to the no-hints policy (asserted offline).",
+ "switch_defaults": {
+  "EDA_LLM_ENRICH": 0,
+  "EDA_LLM_SEQUENCES": 0
+ },
+ "ablation_5k_local": {
+  "spi_master_public": {
+   "seeds": [
+    260923,
+    260924,
+    260925
+   ],
+   "baseline": [
+    72,
+    72,
+    72
+   ],
+   "joints_only": [
+    83,
+    81,
+    81
+   ],
+   "joints_plus_sequences": [
+    81,
+    81,
+    81
+   ],
+   "mean_delta_joints_only": 9.67,
+   "mean_delta_joints_plus_sequences": 9.0,
+   "accepted": {
+    "field_roles": 0,
+    "joint_writes": 6,
+    "sequences": 0
+   }
+  },
+  "spi_xfer_public": {
+   "seeds": [
+    260923,
+    260924,
+    260925
+   ],
+   "baseline": [
+    56,
+    56,
+    56
+   ],
+   "joints_only": [
+    56,
+    56
+   ],
+   "joints_plus_sequences": [
+    38,
+    46,
+    47
+   ],
+   "mean_delta_joints_only": 0.0,
+   "mean_delta_joints_plus_sequences": -12.33,
+   "accepted": {
+    "field_roles": 0,
+    "joint_writes": 0,
+    "sequences": 6
+   },
+   "comment": "receives no joint hints at all; only sequences, which is why the sequence switch exists"
+  },
+  "unchanged": {
+   "dma_xfer_public": {
+    "baseline": 82,
+    "on": 82,
+    "llm_joints": 0
+   },
+   "cache_ctrl_validation": {
+    "baseline": 56,
+    "on": 56,
+    "llm_joints": 0
+   },
+   "branch_predictor_validation": {
+    "baseline": 66,
+    "on": 66,
+    "llm_joints": 0
+   },
+   "watchdog_safety_validation": {
+    "baseline": 47,
+    "on": 47,
+    "llm_joints": 7
+   },
+   "tlb_mmu_validation": {
+    "baseline": 78,
+    "on": 78,
+    "llm_joints": 0
+   }
+  }
+ },
+ "spi_master_30k": {
+  "local": {
+   "off": [
+    75,
+    120,
+    0.5829
+   ],
+   "on": [
+    88,
+    120,
+    0.6853
+   ],
+   "delta": 13
+  },
+  "verilator": {
+   "off": [
+    75,
+    120,
+    0.5829
+   ],
+   "on": [
+    88,
+    120,
+    0.6853
+   ],
+   "delta": 13
+  },
+  "config": "joints only (EDA_LLM_SEQUENCES=0)"
+ },
+ "defects_found_and_fixed": [
+  "LLM joint candidates were merged before the gates that read their count: six hints took SPI-master from 7 to 13, disabling M4 ranking and tripping the generated-family gate.  Measured -1 before the fix, +9 after.",
+  "EDA_LLM_MODEL was read by the recorder but not the client, so asking for flash silently used v4-pro.",
+  "A truncated answer reported status ok with zero hypotheses: completion_tokens == max_tokens (4096) is now reported as truncated."
+ ],
+ "zero_regression": "7/7 bundled DUTs bit-identical at 5k local with the enricher wired in and off"
+}
