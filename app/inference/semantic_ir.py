@@ -261,7 +261,9 @@ _DESCRIPTION_ROLE_RULES = (
     (("privilege level", "privilege", "supervisor", "user mode"), "privilege"),
     (("marked global", "global mapping", "global entry", "be marked global"),
      "scope"),
-    (("tlb fence", "page-table root", "page-table-root", "flush", "invalidate"),
+    # Deliberately vocabulary-free of family names: a maintenance/hazard
+    # operation is recognised by what it does, not by the block it lives in.
+    (("fence", "page-table root", "page-table-root", "flush", "invalidate"),
      "recovery"),
     (("backpressure", "ignored while asserted", "hold off", "deassert"),
      "stall"),

@@ -264,7 +264,7 @@ class _GenericPolicy(_QueuePolicy):
         self.power_indices = role_indices("power")
         self.register_addresses = self.semantic_ir.register_addresses
         self.kind_indices = [i for i, name in enumerate(self.fields)
-                             if name in ("kind", "branch_kind", "type")]
+                             if name in ("kind", "type")]
         self.taken_indices = [i for i, name in enumerate(self.fields)
                               if "taken" in name or name in ("outcome",)]
         self.stall_indices = role_indices("stall")
