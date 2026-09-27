@@ -90,6 +90,28 @@ def inspect(dut, base):
     return hints
 
 
+def list_models():
+    """Ask the endpoint which model ids it serves, so the v4.1 id can be read
+    off instead of guessed."""
+    import urllib.request
+    from inference.deepseek_planner import DeepSeekPlanner
+    planner = DeepSeekPlanner()
+    if not planner.api_key:
+        return {"status": "no_api_key"}
+    request = urllib.request.Request(
+        planner.base_url.rstrip("/") + "/models",
+        headers={"Authorization": "Bearer " + planner.api_key})
+    try:
+        with urllib.request.urlopen(request, timeout=planner.timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        return {"status": "error_" + type(exc).__name__, "detail": str(exc)[:200]}
+    ids = [item.get("id") for item in payload.get("data", [])
+           if isinstance(item, dict)]
+    return {"status": "ok", "base_url": planner.base_url,
+            "models": sorted(item for item in ids if item)}
+
+
 def run_episode(dut, base, steps, enrich):
     base = ROOT / base
     spec = importlib.util.spec_from_file_location("h", base / "harness.py")
@@ -108,13 +130,44 @@ def run_episode(dut, base, steps, enrich):
     return int(np.sum(state)), harness.total_bins, agent
 
 
+def apply_api_key_file(path):
+    """Read the key from a file so it never appears in a command line or log.
+
+    The file form is preferred over DEEPSEEK_API_KEY=... on the command line:
+    argv is visible to other processes and tends to end up in shell history and
+    transcripts.  The value is only ever put into this process's environment and
+    is never printed.
+    """
+    if not path:
+        return False
+    raw = Path(path).expanduser().read_text(encoding="utf-8").strip()
+    if not raw:
+        raise SystemExit("api key file is empty: %s" % path)
+    # Tolerate KEY=value lines and stray quotes.
+    if "=" in raw and not raw.startswith("sk-"):
+        raw = raw.split("=", 1)[1]
+    os.environ["DEEPSEEK_API_KEY"] = raw.strip().strip("'\"")
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dut", default="spi_master_public", choices=sorted(DUTS))
     parser.add_argument("--steps", type=int, default=5000)
     parser.add_argument("--run", action="store_true",
                         help="also run the episode, local backend, in-process")
+    parser.add_argument("--api-key-file", default=os.environ.get(
+        "DEEPSEEK_API_KEY_FILE"),
+        help="file holding the API key; preferred over an inline env var")
+    parser.add_argument("--list-models", action="store_true",
+                        help="GET /models and print the available model ids")
     args = parser.parse_args()
+    apply_api_key_file(args.api_key_file)
+    if args.run or args.list_models:
+        os.environ["EDA_LLM_ENRICH"] = "1"
+    if args.list_models:
+        print(json.dumps(list_models(), ensure_ascii=False, indent=2))
+        return
     base = DUTS[args.dut]
     if not base:
         raise SystemExit("no path registered for %s" % args.dut)
