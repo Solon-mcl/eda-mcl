@@ -1,0 +1,97 @@
+{
+  "field_roles": {
+    "reg_we": "write_enable",
+    "reg_addr": "register_address",
+    "reg_wdata": "register_data",
+    "reg_re": "read_enable",
+    "rxd": "scalar",
+    "ss_in_n": "scalar",
+    "rst_n": "reset",
+    "pad0": "padding",
+    "pad1": "padding",
+    "pad2": "padding",
+    "pad3": "padding",
+    "pad4": "padding"
+  },
+  "joint_writes": [
+    {
+      "target": "protocol_x_mwcr_boundary.mwire_cont",
+      "writes": [[0, 2], [3, 0], [2, 1]],
+      "hold_cycles": 64,
+      "reason": "FRF=2 Microwire, MWCR=0 continuous"
+    },
+    {
+      "target": "protocol_x_mwcr_boundary.mwire_ctrl",
+      "writes": [[0, 2], [3, 1], [2, 1]],
+      "hold_cycles": 64,
+      "reason": "FRF=2 Microwire, MWCR=1 control frame"
+    },
+    {
+      "target": "protocol_x_mwcr_boundary.mwire_full",
+      "writes": [[0, 2], [3, 7], [2, 1]],
+      "hold_cycles": 64,
+      "reason": "FRF=2 Microwire, MWCR=7 all bits"
+    },
+    {
+      "target": "protocol_x_baud2_path.spi0_baud2",
+      "writes": [[0, 0], [5, 2], [2, 1]],
+      "hold_cycles": 64,
+      "reason": "SPI0 FRF=0 with BAUDR=2"
+    },
+    {
+      "target": "protocol_x_baud2_path.spi1_baud2",
+      "writes": [[0, 256], [5, 2], [2, 1]],
+      "hold_cycles": 64,
+      "reason": "SPI1 SCPH=1 with BAUDR=2"
+    },
+    {
+      "target": "protocol_x_baud2_path.mwire_baud2",
+      "writes": [[0, 2], [5, 2], [2, 1]],
+      "hold_cycles": 64,
+      "reason": "Microwire FRF=2 with BAUDR=2"
+    },
+    {
+      "target": "protocol_x_hold_ss_cnt_boundary.spi1_hold3",
+      "writes": [[0, 256], [2, 1]],
+      "hold_cycles": 64,
+      "reason": "SPI1 SCPH=1 to reach hold_ss_cnt=3"
+    },
+    {
+      "target": "protocol_x_hold_ss_cnt_boundary.ssp_hold3",
+      "writes": [[0, 64], [2, 1]],
+      "hold_cycles": 64,
+      "reason": "SSP FRF=1 to reach hold_ss_cnt=3"
+    },
+    {
+      "target": "cross_a.cross_a_0",
+      "writes": [[0, 0], [2, 1]],
+      "hold_cycles": 64,
+      "reason": "SPI0 enable to set s1 and ssi_busy"
+    }
+  ],
+  "sequences": [
+    {
+      "name": "spi0_xfer",
+      "goal": "cross_a.cross_a_0",
+      "steps": [
+        {"set": {"reg_we": 1, "reg_addr": 0, "reg_wdata": 0}, "cycles": 4},
+        {"set": {"reg_we": 1, "reg_addr": 2, "reg_wdata": 1}, "cycles": 4},
+        {"set": {"reg_we": 1, "reg_addr": 4, "reg_wdata": 1}, "cycles": 4},
+        {"set": {"reg_we": 1, "reg_addr": 24, "reg_wdata": 170}, "cycles": 4},
+        {"set": {"reg_we": 0, "reg_addr": 0, "reg_wdata": 0}, "cycles": 64}
+      ]
+    },
+    {
+      "name": "mwire_handshake",
+      "goal": "protocol_x_mwcr_boundary.mwire_full",
+      "steps": [
+        {"set": {"reg_we": 1, "reg_addr": 0, "reg_wdata": 2}, "cycles": 4},
+        {"set": {"reg_we": 1, "reg_addr": 3, "reg_wdata": 7}, "cycles": 4},
+        {"set": {"reg_we": 1, "reg_addr": 2, "reg_wdata": 1}, "cycles": 4},
+        {"set": {"reg_we": 1, "reg_addr": 4, "reg_wdata": 1}, "cycles": 4},
+        {"set": {"reg_we": 1, "reg_addr": 24, "reg_wdata": 85}, "cycles": 4},
+        {"set": {"reg_we": 0, "reg_addr": 0, "reg_wdata": 0, "rxd": 1}, "cycles": 64}
+      ]
+    }
+  ]
+}

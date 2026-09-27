@@ -134,3 +134,20 @@ M8.1 默认开启，可用 `EDA_GENERIC_TRACE_LEARNING=0` 或
 
 在线结构探测默认关闭：local 5k 上 spi_master AUC 0.4967→0.5117、bin 数不变，但 verilator
 30k 上 spi_xfer 62→51、spi_master 75→74；且它从未在任何自带 DUT 上判定"有收益"。
+
+## LLM 富化的新增开关（2026-09-27）
+
+| 环境变量 | 默认 | 作用 |
+|---|---|---|
+| `EDA_LLM_MODEL` | `deepseek-flash` | 端点只有 `deepseek-flash` / `deepseek-v4-pro` |
+| `EDA_LLM_THINKING` | 0 | 实测更差（均值 +2.33 vs +9.33），且思考 token 与输出共用 `max_tokens` |
+| `EDA_LLM_THINKING_RESERVE` | 6144 | 开思考时额外预留的 token |
+| `EDA_LLM_ENRICH_CACHE` | 未设 | 缓存模型**原始响应**；有缓存时不需 key、不联网，校验照常跑。**端点不确定，A/B 必须靠它才有意义** |
+| `EDA_LLM_JOINT_MAX_HOLD` | 64 | joint 假设 `hold_cycles` 上限 —— 它是纯空转等待，实测 256~512 会吃掉大半预算 |
+
+两条必须记住的实测结论：
+
+1. **验证 LLM 给的写序列时不能按地址重排**：顺序有语义（配置寄存器只在块被禁用时可写）。
+   重排会让正确假设失效 —— 同一份假设重排前 −26 bins、保留顺序后 −2。
+2. **模型挑的是「本地编译器编不出来」的目标，不是「还没覆盖」的目标**。spi_xfer 上 8 条假设
+   里有 3 个目标基线早已覆盖，所以程序冗余却仍吃预算，净 −2。因此富化对 spi_xfer 关闭。

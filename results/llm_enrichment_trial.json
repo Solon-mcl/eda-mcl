@@ -15,7 +15,9 @@
   "EDA_LLM_ENRICH": 0,
   "EDA_LLM_SEQUENCES": 0,
   "EDA_LLM_MODEL": "deepseek-flash (was deepseek-v4-pro)",
-  "EDA_LLM_THINKING": "0"
+  "EDA_LLM_THINKING": "0",
+  "EDA_LLM_ENRICH_CACHE": "unset (raw response cache)",
+  "EDA_LLM_JOINT_MAX_HOLD": "64"
  },
  "ablation_5k_local": {
   "spi_master_public": {
@@ -142,6 +144,18 @@
    "symptom": "EDA_LLM_THINKING=1 returned completion_tokens == 8192 and zero hypotheses on 1 of 3 seeds while still reporting a response",
    "fix": "the enricher reserves EDA_LLM_THINKING_RESERVE (default 6144) of extra budget when thinking is on, and the audit record now carries the thinking mode so a run is self-describing",
    "outcome": "truncation gone, but the larger budget then exceeded the timeout; thinking remains off by default on the measurements above"
+  },
+  {
+   "defect": "LLM joint write lists were re-sorted by address during validation, destroying their semantic order",
+   "symptom": "SPI-xfer -26 bins on correct hypotheses",
+   "fix": "preserve the model's order; deduplicate exact repeats only",
+   "outcome": "-26 -> -2 on the same cached hypotheses"
+  },
+  {
+   "defect": "hold_cycles acted as a pure budget drain",
+   "symptom": "the model asked 256-512 cycles per program; eight programs spent ~3800 of 5000 cycles waiting",
+   "fix": "EDA_LLM_JOINT_MAX_HOLD (default 64), with a clamp count in the audit",
+   "outcome": "included in the -26 -> -2 recovery"
   }
  ],
  "zero_regression": "7/7 bundled DUTs bit-identical at 5k local with the enricher wired in and off",
@@ -276,5 +290,94 @@
   },
   "conclusion": "Thinking stays off. It is worse on every axis measured: no more hypotheses (still 6 joint writes), lower and far more variable gain (+2.33 vs +9.33 mean, and +7 vs +10 on the one seed both configurations completed), plus two new silent failure modes - truncation and timeout.",
   "fail_closed_confirmed_live": "The timeout seeds produced covered == the enricher-off baseline exactly (72/120, AUC 0.4967), which is the offline fail-closed property observed on the real endpoint rather than under a fake opener."
+ },
+ "round_c_spi_xfer_joint_hints": {
+  "premise_corrected": "The earlier claim 'SPI-xfer receives no joint hints at all' was wrong. It receives 8 accepted joint hypotheses; they simply do not pay off.",
+  "verified_executable": "The exact action sequence the policy queues for protocol_x_baud2_path.spi0_baud2 was replayed by hand and DOES hit its target bin (index 69), plus 63 and 74. So the program is correct and reachable - the failure is not expressiveness.",
+  "why_no_gain": "The model picks the targets the *local compiler* could not compile, not the targets the *run* is missing. Three of its eight targets (spi0_baud2, spi0_last, spi0_dfs8) are already covered by the baseline through other mechanisms, so the programs are largely redundant and still consume joint-program budget.",
+  "two_defects_found_and_fixed": [
+   {
+    "defect": "validated write lists were re-sorted by register address",
+    "why_it_matters": "Order is semantic: a configuration register may only be writable while the block is disabled, so sorting can put the enable before the configuration and make the whole hypothesis ineffective.",
+    "measured": "-26 -> -2 bins on the same cached hypotheses"
+   },
+   {
+    "defect": "hold_cycles was a pure idle wait charged to the budget",
+    "why_it_matters": "Eight hypotheses asking 256-512 cycles each spent roughly 3800 of 5000 cycles waiting.",
+    "fix": "EDA_LLM_JOINT_MAX_HOLD, default 64"
+   }
+  ],
+  "prompt_change_reverted": {
+   "added": "a paragraph explaining that observation signals are only sampled while the device runs, plus a description of the executor's wrap (clears enable, applies support config, applies the writes, re-asserts enable, pushes data, waits)",
+   "intent": "make observation-gated cross targets reachable for SPI-xfer",
+   "measured_cost": "SPI-master 30k local fell from +9 (reverted prompt) to +1 with the paragraph, and the intended beneficiary SPI-xfer stayed at -2",
+   "decision": "reverted; the paragraph bought nothing and cost SPI-master"
+  },
+  "results_local": {
+   "spi_xfer_public_5k": {
+    "baseline": 56,
+    "with_hints": 54,
+    "delta": -2,
+    "auc": [
+     0.2674,
+     0.2977
+    ],
+    "seeds": 3
+   },
+   "spi_xfer_public_30k": {
+    "baseline": 62,
+    "with_hints": 60,
+    "delta": -2,
+    "auc": [
+     0.5841,
+     0.6198
+    ],
+    "seeds": 3
+   },
+   "spi_master_public_5k": {
+    "baseline": 72,
+    "with_hints": [
+     81,
+     79
+    ],
+    "delta": [
+     9,
+     7
+    ],
+    "seeds": [
+     3,
+     1
+    ]
+   },
+   "spi_master_public_30k": {
+    "baseline": 75,
+    "with_hints": [
+     84,
+     76
+    ],
+    "delta": [
+     9,
+     1
+    ],
+    "seeds": [
+     1,
+     1
+    ]
+   }
+  },
+  "results_rtl": {
+   "spi_master_public_30k": {
+    "baseline": 75,
+    "with_hints": 84,
+    "delta": 9,
+    "auc": [
+     0.5829,
+     0.675
+    ],
+    "note": "pinned draw, verilator backend"
+   }
+  },
+  "draw_sensitivity": "The endpoint is not deterministic even at temperature 0 and identical prompts: three draws for SPI-master gave 5k +9/+7 and 30k +1/+9/+13, with different write lists each time. The 5k gain is stable (+7..+9); the 30k gain is not. EDA_LLM_ENRICH_CACHE is what makes any single result reproducible, and it also lets a recorded draw be replayed with no key and no network.",
+  "conclusion": "Do not enable the enricher for SPI-xfer: -2 bins at both budgets, and the targets it picks are not the ones that are missing. The two validator defects are kept (they are correct regardless), the prompt addition is reverted, and the cache stays."
  }
 }

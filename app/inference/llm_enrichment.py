@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from pathlib import Path
 
 from .deepseek_planner import DeepSeekPlanner, _first_env, _json_object
 
@@ -63,6 +64,7 @@ class EnrichmentHints:
         self.joint_writes = []
         self.sequences = []
         self.rejected = []
+        self.hold_clamped = 0
         self.status = {"status": "disabled", "model": None, "latency_s": 0.0,
                        "usage": {}}
 
@@ -84,6 +86,8 @@ class EnrichmentHints:
             },
             "sequences_switch": self.status.get("sequences_enabled"),
             "thinking": self.status.get("thinking"),
+            "cache": self.status.get("cache"),
+            "hold_clamped": self.hold_clamped,
             "rejected": len(self.rejected),
             "rejected_sample": self.rejected[:8],
         }
@@ -94,8 +98,18 @@ class LLMEnricher:
 
     def __init__(self, planner=None, opener=None):
         self.planner = planner or DeepSeekPlanner(opener=opener)
-        self.enabled = bool(self.planner.api_key) and os.environ.get(
-            "EDA_LLM_ENRICH", "0").lower() in ("1", "true", "yes")
+        # The endpoint is not deterministic even at temperature 0: the same
+        # prompt returned 8, 6, 2 and 0 accepted joint writes across four calls.
+        # Caching the raw response separates the two questions that variance
+        # otherwise entangles - "does the model propose useful hypotheses" and
+        # "does executing them move coverage" - and makes a run reproducible.
+        # The cache stores the raw text, so validation still runs every time.
+        self.cache_path = os.environ.get("EDA_LLM_ENRICH_CACHE") or None
+        has_cache = bool(self.cache_path) and Path(self.cache_path).exists()
+        # A recorded response needs no credentials: replaying it must work in a
+        # scoring or CI environment that has neither a key nor a network.
+        self.enabled = bool(self.planner.api_key or has_cache) and \
+            os.environ.get("EDA_LLM_ENRICH", "0").lower() in ("1", "true", "yes")
         self.override_all_roles = os.environ.get(
             "EDA_LLM_ROLE_OVERRIDE_ALL", "0").lower() in ("1", "true", "yes")
         self.max_targets = max(1, int(os.environ.get(
@@ -123,6 +137,13 @@ class LLMEnricher:
         # joint-candidate path - stay on.
         self.sequences_enabled = os.environ.get(
             "EDA_LLM_SEQUENCES", "0").lower() in ("1", "true", "yes")
+        # `hold_cycles` is a pure idle wait appended to the joint program, so it
+        # is charged straight against the cycle budget.  Measured on SPI-xfer
+        # with eight cached hypotheses: the model asked for 256-512 and coverage
+        # fell 56 -> 30 on all three seeds, i.e. -26, because roughly 3800 of
+        # the 5000 cycles went into waiting.  Cap it and keep it tunable.
+        self.joint_max_hold = max(1, int(os.environ.get(
+            "EDA_LLM_JOINT_MAX_HOLD", "64")))
 
     # ------------------------------------------------------------------ prompt
 
@@ -183,6 +204,8 @@ Rules:
 - Use only field names and target names that appear above. Never invent one.
 - `writes` values must be the complete 32-bit register word to write, as an
   integer in [0, 4294967295]; addresses must be legal register addresses.
+- `hold_cycles` is an extra idle wait, not a timeout: keep it small (64 is
+  plenty) because the executor already lets the operation run.
 - A `sequences` entry is a multi-cycle plan to reach a state or timing bin that
   a single write cannot reach (for example an FSM intermediate state, a wait or
   a completion window). Keep each sequence under {MAX_SEQUENCE_STEPS} steps and
@@ -258,11 +281,22 @@ Rules:
                              "no legal register write")
                 continue
             hold = _int_or_none(item.get("hold_cycles"))
-            hold = 64 if hold is None else min(4096, max(1, hold))
+            hold = 64 if hold is None else min(self.joint_max_hold, max(1, hold))
+            if hold != _int_or_none(item.get("hold_cycles")):
+                hints.hold_clamped += 1
+            # Order is semantic, not cosmetic: a configuration register may only
+            # be writable while the block is disabled, so re-sorting the pairs by
+            # address turns a correct hypothesis into a rejected one.  Keep the
+            # model's order and only drop exact repeats.
+            ordered, seen = [], set()
+            for pair in writes:
+                if pair not in seen:
+                    seen.add(pair)
+                    ordered.append(pair)
             hints.joint_writes.append({
                 "target_index": target.index,
                 "target_name": target_name,
-                "writes": tuple(sorted(writes)),
+                "writes": tuple(ordered),
                 "hold_cycles": hold,
                 "reason": str(item.get("reason", ""))[:200],
             })
@@ -340,15 +374,23 @@ Rules:
         budget = self.max_tokens
         if self.planner.thinking == "enabled":
             budget = min(16384, budget + self.thinking_reserve)
-        content, status = self.planner.request_json(
-            system=("You extract verified hardware-interface facts from a "
-                    "specification. Obey the requested JSON schema exactly and "
-                    "never invent field or target names."),
-            prompt=self._prompt(spec, ir, list(targets or ()), set()),
-            max_tokens=budget,
-            # This feature has its own switch; the planner's DEEPSEEK_ENABLED
-            # stays independent so either can be used without the other.
-            force=True)
+        cached = self._read_cache()
+        if cached is not None:
+            content = cached
+            status = {"status": "cached", "model": self.planner.model,
+                      "max_tokens": budget, "usage": {}}
+        else:
+            content, status = self.planner.request_json(
+                system=("You extract verified hardware-interface facts from a "
+                        "specification. Obey the requested JSON schema exactly "
+                        "and never invent field or target names."),
+                prompt=self._prompt(spec, ir, list(targets or ()), set()),
+                max_tokens=budget,
+                # This feature has its own switch; the planner's
+                # DEEPSEEK_ENABLED stays independent so either can be used
+                # without the other.
+                force=True)
+            self._write_cache(content)
         # request_json hands back raw text; recover the object before validating
         # it.  Feeding the string straight in silently accepted nothing.
         hints = (self._validate(_json_object(content), ir, targets)
@@ -358,6 +400,7 @@ Rules:
         hints.status["model"] = self.planner.model
         hints.status["thinking"] = self.planner.thinking
         hints.status["sequences_enabled"] = self.sequences_enabled
+        hints.status["cache"] = self.cache_path
         usage = hints.status.get("usage") or {}
         requested = int(hints.status.get("max_tokens") or 0)
         completion = int(usage.get("completion_tokens") or 0)
@@ -367,6 +410,29 @@ Rules:
             # a successful run that quietly produced nothing.
             hints.status["status"] = "truncated"
         return hints
+
+    # ------------------------------------------------------------------- cache
+
+    def _read_cache(self):
+        if not self.cache_path:
+            return None
+        path = Path(self.cache_path)
+        if not path.exists():
+            return None
+        try:
+            return path.read_text(encoding="utf-8")
+        except OSError:  # pragma: no cover - treat an unreadable cache as absent
+            return None
+
+    def _write_cache(self, content):
+        if not self.cache_path or not content:
+            return
+        path = Path(self.cache_path)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+        except OSError:  # pragma: no cover - caching is best effort
+            pass
 
 
 def enrichment_record(hints):
