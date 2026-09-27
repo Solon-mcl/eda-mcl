@@ -17,7 +17,9 @@ import numpy as np
 from .deepseek_planner import DeepSeekPlanner
 from .coverage_targets import load_coverage_targets, missing_target_weights
 from .coverage_dependency import build_coverage_dependency_graph
-from .joint_candidates import compile_joint_candidates
+from .joint_candidates import (JointCoverageCandidate,
+                                compile_joint_candidates)
+from .llm_enrichment import LLMEnricher
 from .generic_planner import (
     CoverageMacroScheduler,
     EpisodeManager,
@@ -143,7 +145,7 @@ class _GenericPolicy(_QueuePolicy):
 
     def __init__(self, dims: int, fields=None, spec="", seed: int | None = None,
                  planned_program=None, semantic_ir: DutSemanticIR | None = None,
-                 coverage_targets=None):
+                 coverage_targets=None, llm_hints=None):
         self.dims = max(1, int(dims))
         super().__init__(seed)
         self.fields = list(fields or [])[:self.dims]
@@ -153,6 +155,11 @@ class _GenericPolicy(_QueuePolicy):
         if not self.semantic_ir.fields and self.fields:
             declaration = "action = [" + ", ".join(self.fields) + "]"
             self.semantic_ir = build_semantic_ir(declaration)
+        # Validated LLM hypotheses (roles already merged into semantic_ir by
+        # the caller).  Held here so the candidate builders can use them; the
+        # cycle-level path never reads them.
+        self._llm_hints = llm_hints
+        self.llm_sequence_candidate_count = 0
         self._tx_index = 0
         self._last_covered = 0
         self._last_gain_step = 0
@@ -169,6 +176,20 @@ class _GenericPolicy(_QueuePolicy):
             "EDA_JOINT_CANDIDATES", "1").lower() not in ("0", "false", "no")
         self.joint_candidates = (compile_joint_candidates(
             self.semantic_ir, self.coverage_targets) if joint_enabled else [])
+        # LLM joint hypotheses only fill targets the local bit-field reverse
+        # lookup could not compile, so they add coverage opportunities rather
+        # than duplicating one.  Every write was range-checked on the way in.
+        self.llm_joint_candidate_count = 0
+        if joint_enabled and self._llm_hints is not None:
+            compiled = {item.target_index for item in self.joint_candidates}
+            extra = [
+                JointCoverageCandidate(
+                    item["target_index"], item["target_name"],
+                    item["writes"], ("llm",), (), item["hold_cycles"])
+                for item in self._llm_hints.joint_writes
+                if item["target_index"] not in compiled]
+            self.joint_candidates = list(self.joint_candidates) + extra
+            self.llm_joint_candidate_count = len(extra)
         self._joint_candidate_by_target = {
             item.target_index: item for item in self.joint_candidates}
         self.adaptive_joint_ranking = os.environ.get(
@@ -329,7 +350,8 @@ class _GenericPolicy(_QueuePolicy):
         generic_candidates = (self._build_generic_sequence_candidates()
                               if self.generic_sequence_search_enabled else ())
         self.generic_sequence_native_candidate_count = sum(
-            not str(item.metadata.get("family", "")).startswith("capability_")
+            not str(item.metadata.get("family", "")).startswith(
+                ("capability_", "llm_"))
             for item in generic_candidates)
         self.generic_sequence_immediate = bool(
             self.generic_sequence_has_explicit_targets and
@@ -1186,6 +1208,34 @@ class _GenericPolicy(_QueuePolicy):
             # search layer must stay enabled, because the online search is
             # what turns coarse candidates into useful ones.
             candidates = self._build_fallback_candidates()
+        if self._llm_hints is not None and self._llm_hints.sequences:
+            llm_candidates = self._build_llm_sequence_candidates()
+            self.llm_sequence_candidate_count = len(llm_candidates)
+            candidates.extend(llm_candidates)
+        return candidates
+
+    def _build_llm_sequence_candidates(self):
+        """Turn validated LLM sequence hypotheses into search candidates.
+
+        Appended after the supply-side gate, so the gate keeps seeing exactly
+        the schema-driven plus generated set it was calibrated on.  Whether a
+        program is any good is decided by the search layer, which retires a
+        candidate after two attempts without coverage - the model proposes, the
+        measured coverage disposes.
+        """
+        candidates = []
+        for item in self._llm_hints.sequences:
+            steps = tuple(
+                self._program_step(dict(assignments), cycles=cycles)
+                for assignments, cycles in item["steps"])
+            if not steps:
+                continue
+            candidates.append(SequenceCandidate(
+                "llm.%s" % re.sub(r"[^a-z0-9]+", "_",
+                                  item["name"].lower()).strip("_"),
+                steps,
+                {"family": "llm_protocol", "priority": 9,
+                 "goal": item.get("goal", "")}))
         return candidates
 
     def _build_combinatorial_candidates(self):
@@ -2217,15 +2267,29 @@ class _LocalInferenceInterface:
 
     def __init__(self, dut_spec_path: str, covergroup_path: str):
         spec = _read(dut_spec_path)
-        self.semantic_ir = build_semantic_ir(spec)
         self.coverage_targets = load_coverage_targets(covergroup_path)
+        # Pass one parses the specification locally, so the enrichment request
+        # can be told what the parser already understood and what it could not
+        # resolve.  Nothing here touches the network unless EDA_LLM_ENRICH=1.
+        self.semantic_ir = build_semantic_ir(spec)
+        self._llm_enricher = LLMEnricher()
+        self._llm_hints = self._llm_enricher.enrich(
+            spec, self.semantic_ir, self.coverage_targets)
+        if self._llm_hints.field_roles:
+            # Pass two lets the validated role hints take effect.  Role
+            # inference runs before bounds, so this is the only correct order.
+            self.semantic_ir = build_semantic_ir(
+                spec, role_overrides=self._llm_hints.field_roles,
+                override_all_roles=self._llm_enricher.override_all_roles)
+        self.llm_enrichment_status = self._llm_hints.as_record()
         action_fields = [item.name for item in self.semantic_ir.fields]
         action_dims = self.semantic_ir.action_dim
         self.action_dims = action_dims
         self._policy = UniversalPolicy(
             action_dims, fields=action_fields, spec=spec,
             semantic_ir=self.semantic_ir,
-            coverage_targets=self.coverage_targets)
+            coverage_targets=self.coverage_targets,
+            llm_hints=self._llm_hints)
 
     def predict(self, coverage_state: np.ndarray, step: int,
                 max_steps: int) -> np.ndarray:
@@ -2260,7 +2324,8 @@ class InferenceInterface(_LocalInferenceInterface):
                 self.action_dims, fields=_parse_action_fields(spec), spec=spec,
                 planned_program=plan.get("program"),
                 semantic_ir=self.semantic_ir,
-                coverage_targets=self.coverage_targets)
+                coverage_targets=self.coverage_targets,
+                llm_hints=self._llm_hints)
 
     @staticmethod
     def _infer_dims(spec: str) -> int:

@@ -594,13 +594,30 @@ def _parse_structured_constraints(spec: str, field_names=()):
     return constraints, dependencies, timings
 
 
-def build_semantic_ir(spec: str) -> DutSemanticIR:
+# The complete role vocabulary produced by _infer_role.  Single source of truth
+# for anybody that has to *validate* a role from outside (the LLM enricher), so
+# a second, drifting copy of this list cannot appear.
+SEMANTIC_ROLES = frozenset((
+    "ack", "acquire", "address_lane", "advance", "context_id", "credit",
+    "data_lane", "enable", "event", "fault", "instance_select", "interrupt",
+    "length", "mask", "mode", "operation", "padding", "pc_lane", "power",
+    "priority", "privilege", "queue_pop", "queue_push", "read_enable", "ready",
+    "recovery", "register_address", "register_data", "release", "request",
+    "reset", "scalar", "scope", "selector", "stall", "target_lane",
+    "transaction_id", "write_enable",
+))
+
+
+def build_semantic_ir(spec: str, role_overrides=None,
+                      override_all_roles=False) -> DutSemanticIR:
     names = parse_action_fields(spec)
     declared_match = re.search(r"action\s+space\s*\(\s*(\d+)\s*dims?\s*\)",
                                spec, re.IGNORECASE)
     declared = int(declared_match.group(1)) if declared_match else None
     dims = infer_action_dim(spec, names)
     skip_lines = action_declaration_lines(spec)
+    overrides = {str(key).strip().lower(): str(value).strip().lower()
+                 for key, value in (role_overrides or {}).items()}
     fields = []
     for index, name in enumerate(names):
         description = _description_for(spec, name, skip_lines)
@@ -611,6 +628,14 @@ def build_semantic_ir(spec: str) -> DutSemanticIR:
             # lines mention several fields at once.
             role = _infer_role_from_description(
                 keyed_description_for(spec, name, skip_lines)) or role
+        override = overrides.get(name.lower())
+        if override is not None and override in SEMANTIC_ROLES:
+            # External role hints fill gaps; they do not second-guess a role the
+            # local rules already resolved, and can never turn a field into
+            # padding (padding must stay zeroed).
+            if override != "padding" and (role == "scalar" or
+                                          override_all_roles):
+                role = override
         minimum, maximum, width = _infer_bounds(name, description, role)
         active_low = (name.endswith("_n") or
                       "active-low" in description.lower() or

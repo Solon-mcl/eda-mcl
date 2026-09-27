@@ -157,21 +157,30 @@ coverage feedback is unavailable. Do not include Markdown or additional keys.
             "summary": str(raw.get("summary", ""))[:500],
         }
 
-    def plan(self, spec: str, covergroup: str):
-        started = time.perf_counter()
-        if not self.enabled:
+    def request_json(self, system: str, prompt: str, max_tokens=None,
+                     force=False):
+        """One JSON-mode completion.  Returns ``(content_or_None, status)``.
+
+        The single place that speaks HTTP, so every caller (the one-shot
+        program planner and the semantic enricher) inherits the same fail-closed
+        behaviour: any network, protocol or parse problem yields ``None`` and a
+        status the caller can record, never an exception.
+
+        ``force`` lets a caller with its own switch (EDA_LLM_ENRICH) use this as
+        pure transport without also having to set DEEPSEEK_ENABLED.  A missing
+        key always disables the request, no matter who asks.
+        """
+        if not self.api_key or (not self.enabled and not force):
             return None, {"status": "disabled", "model": self.model,
                           "latency_s": 0.0, "usage": {}}
         url = self.base_url.rstrip("/") + "/chat/completions"
         body = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": (
-                    "You are an expert coverage-driven RTL verification planner. "
-                    "Obey the requested JSON schema and never invent action fields.")},
-                {"role": "user", "content": self._prompt(spec, covergroup)},
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
             ],
-            "max_tokens": self.max_tokens,
+            "max_tokens": int(max_tokens or self.max_tokens),
             # DeepSeek-V4 enables thinking by default.  Planning needs compact
             # schema-constrained output, so disabling CoT saves wall time and
             # tokens without putting reasoning text into the returned plan.
@@ -189,19 +198,32 @@ coverage feedback is unavailable. Do not include Markdown or additional keys.
             choice = payload["choices"][0]
             content = choice["message"]["content"]
             finish_reason = choice.get("finish_reason")
-            plan = self._validate(_json_object(content))
-            status = "ok" if plan else "invalid_response"
+            status = "ok"
             usage = payload.get("usage", {})
         except urllib.error.HTTPError as exc:
-            plan, status, usage, finish_reason = None, f"http_{exc.code}", {}, None
+            content, status, usage, finish_reason = (
+                None, f"http_{exc.code}", {}, None)
         except Exception as exc:  # network/timeout/JSON/schema: always degrade
-            plan, status, usage, finish_reason = (
+            content, status, usage, finish_reason = (
                 None, "error_" + type(exc).__name__, {}, None)
-        return plan, {
+        return content, {
             "status": status, "model": self.model,
             "finish_reason": finish_reason,
-            "latency_s": time.perf_counter() - started,
             "usage": {key: int(value) for key, value in usage.items()
-                      if key in ("prompt_tokens", "completion_tokens", "total_tokens")
+                      if key in ("prompt_tokens", "completion_tokens",
+                                 "total_tokens")
                       and isinstance(value, (int, float))},
         }
+
+    def plan(self, spec: str, covergroup: str):
+        started = time.perf_counter()
+        content, status = self.request_json(
+            system=("You are an expert coverage-driven RTL verification planner. "
+                    "Obey the requested JSON schema and never invent action fields."),
+            prompt=self._prompt(spec, covergroup))
+        plan = self._validate(_json_object(content)) if content else None
+        status = dict(status)
+        if content is not None and plan is None:
+            status["status"] = "invalid_response"
+        status["latency_s"] = time.perf_counter() - started
+        return plan, status

@@ -187,10 +187,16 @@ def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
                 "EDA_FIELD_WRITE_REPEATS", "16")),
             "generic_sequence_search": generic_sequence_search_enabled(),
             "generic_trace_learning": generic_trace_learning_enabled(),
+            "llm_enrich": os.environ.get("EDA_LLM_ENRICH", "0").lower()
+            in ("1", "true", "yes"),
+            "llm_model": os.environ.get("EDA_LLM_MODEL",
+                                        os.environ.get("DEEPSEEK_MODEL",
+                                                       "auto")),
         },
     }
     if agent_kind == "full":
         result["llm_status"] = getattr(agent, "llm_status", None)
+        result["llm_enrichment"] = getattr(agent, "llm_enrichment_status", None)
         trace = getattr(getattr(agent, "_policy", None), "macro_trace", None)
         if trace is not None:
             result["neural_macro_trace"] = [
@@ -201,6 +207,10 @@ def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
         generic_search = getattr(policy, "_generic_sequence_search", None)
         result["algorithm_parameters"]["generic_sequence_candidate_count"] = (
             len(generic_search.candidates) if generic_search is not None else 0)
+        result["algorithm_parameters"]["llm_joint_candidate_count"] = int(
+            getattr(policy, "llm_joint_candidate_count", 0))
+        result["algorithm_parameters"]["llm_sequence_candidate_count"] = int(
+            getattr(policy, "llm_sequence_candidate_count", 0))
         result["algorithm_parameters"]["generic_sequence_applicable"] = bool(
             getattr(policy, "generic_sequence_search_applicable", False))
         result["algorithm_parameters"]["generic_sequence_explicit_targets"] = bool(
