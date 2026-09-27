@@ -74,6 +74,12 @@ class DeepSeekPlanner:
         self.timeout = max(1.0, float(os.environ.get("DEEPSEEK_TIMEOUT_S", "45")))
         self.max_tokens = min(8192, max(256, int(
             os.environ.get("DEEPSEEK_MAX_TOKENS", "4096"))))
+        # Thinking is off by default: the program planner wants compact
+        # schema-constrained output.  The semantic enricher has to reason about
+        # bit fields, so EDA_LLM_THINKING=1 lets that be A/B'd.
+        self.thinking = ("enabled" if os.environ.get(
+            "EDA_LLM_THINKING", "0").lower() in ("1", "true", "yes")
+            else "disabled")
         # LLM use is opt-in.  The default competition path is fully local;
         # setting DEEPSEEK_ENABLED=1 explicitly enables the one-shot planner.
         self.enabled = bool(self.api_key) and os.environ.get(
@@ -181,10 +187,10 @@ coverage feedback is unavailable. Do not include Markdown or additional keys.
                 {"role": "user", "content": prompt},
             ],
             "max_tokens": int(max_tokens or self.max_tokens),
-            # DeepSeek-V4 enables thinking by default.  Planning needs compact
-            # schema-constrained output, so disabling CoT saves wall time and
-            # tokens without putting reasoning text into the returned plan.
-            "thinking": {"type": "disabled"},
+            # DeepSeek-V4 enables thinking by default.  Left configurable
+            # because the two callers want different things: planning wants
+            # compact output, bit-field reasoning may benefit from CoT.
+            "thinking": {"type": self.thinking},
             "response_format": {"type": "json_object"},
             "stream": False,
         }
