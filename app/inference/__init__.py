@@ -176,20 +176,6 @@ class _GenericPolicy(_QueuePolicy):
             "EDA_JOINT_CANDIDATES", "1").lower() not in ("0", "false", "no")
         self.joint_candidates = (compile_joint_candidates(
             self.semantic_ir, self.coverage_targets) if joint_enabled else [])
-        # LLM joint hypotheses only fill targets the local bit-field reverse
-        # lookup could not compile, so they add coverage opportunities rather
-        # than duplicating one.  Every write was range-checked on the way in.
-        self.llm_joint_candidate_count = 0
-        if joint_enabled and self._llm_hints is not None:
-            compiled = {item.target_index for item in self.joint_candidates}
-            extra = [
-                JointCoverageCandidate(
-                    item["target_index"], item["target_name"],
-                    item["writes"], ("llm",), (), item["hold_cycles"])
-                for item in self._llm_hints.joint_writes
-                if item["target_index"] not in compiled]
-            self.joint_candidates = list(self.joint_candidates) + extra
-            self.llm_joint_candidate_count = len(extra)
         self._joint_candidate_by_target = {
             item.target_index: item for item in self.joint_candidates}
         self.adaptive_joint_ranking = os.environ.get(
@@ -209,6 +195,27 @@ class _GenericPolicy(_QueuePolicy):
         self._joint_ranker = (JointCandidateRanker(
             max_failed_attempts=joint_retry_budget)
                               if self.adaptive_joint_ranking_applied else None)
+        # LLM joint hypotheses are appended *after* the gates above, exactly
+        # like the generated candidate families.  Merging them first silently
+        # moved both thresholds: on SPI-master the local set is 7 candidates
+        # (M4 ranker enabled, "joint path usable"), and six extra hints took it
+        # to 13, which disabled the ranker and tripped the generated-family
+        # gate - two calibrated decisions changed by a hypothesis, not by a
+        # measurement.  Only targets the local bit-field lookup could not
+        # compile are filled, so these add opportunities, never duplicates.
+        self.llm_joint_candidate_count = 0
+        if joint_enabled and self._llm_hints is not None:
+            compiled = {item.target_index for item in self.joint_candidates}
+            extra = [
+                JointCoverageCandidate(
+                    item["target_index"], item["target_name"],
+                    item["writes"], ("llm",), (), item["hold_cycles"])
+                for item in self._llm_hints.joint_writes
+                if item["target_index"] not in compiled]
+            self.joint_candidates = list(self.joint_candidates) + extra
+            self.llm_joint_candidate_count = len(extra)
+            self._joint_candidate_by_target = {
+                item.target_index: item for item in self.joint_candidates}
         self._active_target = None
         self._field_by_name = {item.name.lower(): item.index
                                for item in self.semantic_ir.fields}

@@ -104,6 +104,9 @@ def build_payload(spec, ir, targets):
 def main():
     os.environ["DEEPSEEK_API_KEY"] = "test-only-not-a-secret"
     os.environ["EDA_LLM_ENRICH"] = "1"
+    # The validator is exercised with sequences enabled; their default-off
+    # behaviour is asserted separately below.
+    os.environ["EDA_LLM_SEQUENCES"] = "1"
     calls = []
 
     def opener(request, timeout):
@@ -198,6 +201,44 @@ def main():
         agent.predict(state, step, 100)
     assert not silent_calls, "predict() touched the network"
 
+    # ---- 3b. the sequence switch is honoured ----------------------------
+    os.environ["EDA_LLM_ENRICH"] = "1"
+    os.environ["EDA_LLM_SEQUENCES"] = "0"
+    seq_off = LLMEnricher(planner=DeepSeekPlanner(opener=opener)).enrich(
+        spec, ir, targets)
+    assert not seq_off.sequences, seq_off.sequences
+    assert seq_off.joint_writes, "joint hints must stay on when sequences are off"
+    assert not seq_off.status["sequences_enabled"]
+    os.environ["EDA_LLM_SEQUENCES"] = "1"
+
+    # ---- 4. enabled but unreachable must equal disabled -------------------    # This is the property that decides whether the feature can be left on in a
+    # scoring environment with no network: it has to degrade to exactly the
+    # local policy, not to a broken one.
+    os.environ["EDA_LLM_ENRICH"] = "1"
+    os.environ["DEEPSEEK_API_KEY"] = "test-only-not-a-secret"
+
+    def broken_opener(request, timeout):
+        raise OSError("simulated network failure")
+
+    broken = LLMEnricher(planner=DeepSeekPlanner(opener=broken_opener))
+    broken_hints = broken.enrich(spec, ir, targets)
+    assert broken_hints.status["status"].startswith("error_"), \
+        broken_hints.status
+    assert not broken_hints.field_roles and not broken_hints.joint_writes
+    assert not broken_hints.sequences
+    broken_policy = UniversalPolicy(ir.action_dim,
+                                    fields=[f.name for f in ir.fields],
+                                    spec=spec, semantic_ir=ir,
+                                    coverage_targets=targets,
+                                    llm_hints=broken_hints)
+    assert broken_policy.llm_joint_candidate_count == 0
+    assert broken_policy.llm_sequence_candidate_count == 0
+    assert len(broken_policy._generic_sequence_search.candidates) == \
+        len(plain._generic_sequence_search.candidates), \
+        "an unreachable model must not change the candidate pool"
+    assert broken_policy.joint_candidates == plain.joint_candidates
+    fail_closed_ok = True
+
     os.environ["EDA_LLM_ENRICH"] = "1"
     os.environ.pop("DEEPSEEK_API_KEY", None)
     print(json.dumps({
@@ -208,6 +249,7 @@ def main():
         "candidates_enriched": enriched_count,
         "roles_available": len(SEMANTIC_ROLES),
         "disabled_is_silent": not silent_calls,
+        "fail_closed": fail_closed_ok,
     }, ensure_ascii=False, indent=2))
 
 

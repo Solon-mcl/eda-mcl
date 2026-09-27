@@ -17,13 +17,11 @@ built artifact unless EDA_LLM_ENRICH=1 is set at run time.
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
-
-import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
@@ -112,22 +110,27 @@ def list_models():
             "models": sorted(item for item in ids if item)}
 
 
-def run_episode(dut, base, steps, enrich):
-    base = ROOT / base
-    spec = importlib.util.spec_from_file_location("h", base / "harness.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    harness_cls = next(getattr(module, name) for name in dir(module)
-                       if name.endswith("Harness"))
-    from inference import InferenceInterface
-    os.environ["EDA_LLM_ENRICH"] = "1" if enrich else "0"
-    harness = harness_cls()
-    state = harness.reset()
-    agent = InferenceInterface(str(base / "dut" / "dut_spec.md"),
-                               str(base / "dut" / "covergroup.svh"))
-    for step in range(steps):
-        state = harness.step(agent.predict(state, step, steps))[0]
-    return int(np.sum(state)), harness.total_bins, agent
+def run_episode(dut, base, steps, enrich, backend="local", seed=260923):
+    """Run one episode through the canonical experiment entry point.
+
+    Delegating to tools/run_experiments.py rather than driving the harness here
+    keeps backend selection in one place: constructing the harness directly
+    picks Verilator, which cannot be spawned on this host.
+    """
+    out = ROOT / "results" / ("_llm_episode_%s_%s_%d.json" % (
+        "on" if enrich else "off", dut, seed))
+    env = dict(os.environ)
+    env["EDA_LLM_ENRICH"] = "1" if enrich else "0"
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "run_experiments.py"),
+         "--dut", dut, "--steps", str(steps), "--backend", backend,
+         "--seed", str(seed), "--output", str(out)],
+        cwd=str(ROOT), env=env, capture_output=True, text=True)
+    if result.returncode != 0 or not out.exists():
+        raise SystemExit("episode failed: %s" % result.stderr[-400:])
+    record = json.loads(out.read_text(encoding="utf-8"))[0]
+    out.unlink()
+    return record
 
 
 def apply_api_key_file(path):
@@ -140,7 +143,9 @@ def apply_api_key_file(path):
     """
     if not path:
         return False
-    raw = Path(path).expanduser().read_text(encoding="utf-8").strip()
+    # utf-8-sig, not utf-8: the Windows shell writes UTF-8 with a BOM by
+    # default, and a BOM smuggled into the Authorization header is a 401.
+    raw = Path(path).expanduser().read_text(encoding="utf-8-sig").strip()
     if not raw:
         raise SystemExit("api key file is empty: %s" % path)
     # Tolerate KEY=value lines and stray quotes.
@@ -154,20 +159,25 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dut", default="spi_master_public", choices=sorted(DUTS))
     parser.add_argument("--steps", type=int, default=5000)
+    parser.add_argument("--seeds", default="260923,260924,260925",
+                        help="comma-separated seeds; a single seed cannot "
+                             "separate a real gain from noise")
     parser.add_argument("--run", action="store_true",
                         help="also run the episode, local backend, in-process")
     parser.add_argument("--api-key-file", default=os.environ.get(
         "DEEPSEEK_API_KEY_FILE"),
         help="file holding the API key; preferred over an inline env var")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="show the request shape without calling the model")
     parser.add_argument("--list-models", action="store_true",
                         help="GET /models and print the available model ids")
     args = parser.parse_args()
     apply_api_key_file(args.api_key_file)
-    if args.run or args.list_models:
-        os.environ["EDA_LLM_ENRICH"] = "1"
     if args.list_models:
         print(json.dumps(list_models(), ensure_ascii=False, indent=2))
         return
+    # Running this tool means asking the model; only --dry-run suppresses it.
+    os.environ["EDA_LLM_ENRICH"] = "0" if args.dry_run else "1"
     base = DUTS[args.dut]
     if not base:
         raise SystemExit("no path registered for %s" % args.dut)
@@ -176,16 +186,29 @@ def main():
         return
     if hints is None:
         raise SystemExit("refusing to compare: the enricher made no request")
-    off, total, _ = run_episode(args.dut, base, args.steps, enrich=False)
-    on, _, agent = run_episode(args.dut, base, args.steps, enrich=True)
+    seeds = [int(value) for value in args.seeds.split(",") if value.strip()]
     print()
-    print("local %d steps, %s" % (args.steps, args.dut))
-    print("  enricher off : %d/%d" % (off, total))
-    print("  enricher on  : %d/%d  (%+d)" % (on, total, on - off))
-    print("  audit        : %s" % json.dumps(
-        agent.llm_enrichment_status, ensure_ascii=False))
-    print("  llm joint candidates    : %d" % agent._policy.llm_joint_candidate_count)
-    print("  llm sequence candidates : %d" % agent._policy.llm_sequence_candidate_count)
+    print("local %d steps, %s, %d seed(s)" % (args.steps, args.dut, len(seeds)))
+    deltas = []
+    for seed in seeds:
+        off = run_episode(args.dut, base, args.steps, False, seed=seed)
+        on = run_episode(args.dut, base, args.steps, True, seed=seed)
+        delta = on["covered_bins"] - off["covered_bins"]
+        deltas.append(delta)
+        print("  seed %-8d off %3d/%d (auc %.4f)   on %3d/%d (auc %.4f)   %+d"
+              % (seed, off["covered_bins"], off["total_bins"],
+                 off["normalized_auc"], on["covered_bins"], on["total_bins"],
+                 on["normalized_auc"], delta))
+        audit = on.get("llm_enrichment") or {}
+        params = on.get("algorithm_parameters", {})
+        print("      audit: %s accepted %s / rejected %s | llm joints %s "
+              "seqs %s | pool %s" % (
+                  audit.get("status"), audit.get("accepted"), audit.get("rejected"),
+                  params.get("llm_joint_candidate_count"),
+                  params.get("llm_sequence_candidate_count"),
+                  params.get("generic_sequence_candidate_count")))
+    mean = sum(deltas) / float(len(deltas)) if deltas else 0.0
+    print("  mean delta: %+.2f bins over %d seed(s)" % (mean, len(deltas)))
 
 
 if __name__ == "__main__":

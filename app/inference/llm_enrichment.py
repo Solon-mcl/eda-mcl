@@ -75,11 +75,14 @@ class EnrichmentHints:
             "model": self.status.get("model"),
             "latency_s": round(float(self.status.get("latency_s", 0.0)), 3),
             "usage": self.status.get("usage", {}),
+            "finish_reason": self.status.get("finish_reason"),
+            "max_tokens": self.status.get("max_tokens"),
             "accepted": {
                 "field_roles": len(self.field_roles),
                 "joint_writes": len(self.joint_writes),
                 "sequences": len(self.sequences),
             },
+            "sequences_switch": self.status.get("sequences_enabled"),
             "rejected": len(self.rejected),
             "rejected_sample": self.rejected[:8],
         }
@@ -98,6 +101,20 @@ class LLMEnricher:
             "EDA_LLM_ENRICH_MAX_TARGETS", "48")))
         self.max_fields = max(1, int(os.environ.get(
             "EDA_LLM_ENRICH_MAX_FIELDS", "64")))
+        # A truncated answer is worse than no answer: it looks like a response
+        # but parses into a partial object.  Measured with deepseek-flash, a
+        # 4096-token cap produced completion_tokens == 4096 and a body that
+        # recovered as "not a JSON object", silently yielding zero hypotheses.
+        self.max_tokens = min(16384, max(1024, int(os.environ.get(
+            "EDA_LLM_ENRICH_MAX_TOKENS", "8192"))))
+        # Sequence hypotheses put programs into the flat candidate pool, which
+        # is swept rather than budgeted.  Measured on SPI-xfer (which receives
+        # no joint hints, only sequences): 56 -> 38/46/47 bins over three seeds,
+        # i.e. -12.3 on average.  They are therefore off by default and kept
+        # switchable, while joint hints - which feed the already budget-aware
+        # joint-candidate path - stay on.
+        self.sequences_enabled = os.environ.get(
+            "EDA_LLM_SEQUENCES", "0").lower() in ("1", "true", "yes")
 
     # ------------------------------------------------------------------ prompt
 
@@ -162,6 +179,9 @@ Rules:
   a single write cannot reach (for example an FSM intermediate state, a wait or
   a completion window). Keep each sequence under {MAX_SEQUENCE_STEPS} steps and
   give every step a positive `cycles` value.
+- Keep `reason` to at most 10 words. Answer with at most 12 joint_writes and at
+  most 6 sequences: a short, correct answer is far more useful than a long one,
+  because the answer is truncated (and then discarded) if it does not fit.
 - Empty arrays are a perfectly good answer. Do not pad the answer to look
   complete; a wrong hypothesis costs evaluation budget.
 - No Markdown, no extra keys.
@@ -299,7 +319,8 @@ Rules:
         self._validate_roles(raw, hints, field_roles)
         self._validate_joint(raw, hints, target_by_name, compiled,
                              legal_addresses)
-        self._validate_sequences(raw, hints, field_index)
+        if self.sequences_enabled:
+            self._validate_sequences(raw, hints, field_index)
         return hints
 
     # ------------------------------------------------------------------- entry
@@ -313,7 +334,7 @@ Rules:
                     "specification. Obey the requested JSON schema exactly and "
                     "never invent field or target names."),
             prompt=self._prompt(spec, ir, list(targets or ()), set()),
-            max_tokens=self.planner.max_tokens,
+            max_tokens=self.max_tokens,
             # This feature has its own switch; the planner's DEEPSEEK_ENABLED
             # stays independent so either can be used without the other.
             force=True)
@@ -323,8 +344,16 @@ Rules:
                  if content else EnrichmentHints())
         hints.status = dict(status)
         hints.status["latency_s"] = time.perf_counter() - started
-        hints.status["status"] = status.get("status", "error")
         hints.status["model"] = self.planner.model
+        hints.status["sequences_enabled"] = self.sequences_enabled
+        usage = hints.status.get("usage") or {}
+        requested = int(hints.status.get("max_tokens") or 0)
+        completion = int(usage.get("completion_tokens") or 0)
+        if (content is not None and requested and completion >= requested):
+            # The endpoint does not always report finish_reason, so the token
+            # count is the reliable signal.  Say so loudly instead of reporting
+            # a successful run that quietly produced nothing.
+            hints.status["status"] = "truncated"
         return hints
 
 

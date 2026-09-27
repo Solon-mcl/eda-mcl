@@ -70,9 +70,17 @@ class DeepSeekPlanner:
             "DEEPSEEK_BASE_URL", "LLM_BASE_URL", "OPENAI_BASE_URL",
             default="https://api.deepseek.com")
         self.model = _first_env(
-            "DEEPSEEK_MODEL", "LLM_MODEL", default="deepseek-v4-pro")
+            "EDA_LLM_MODEL", "DEEPSEEK_MODEL", "LLM_MODEL",
+            default="deepseek-v4-pro")
+        # Sampling.  The enricher is evaluated as a component, so the same
+        # specification has to give the same hypotheses across runs; the caller
+        # can raise this for a diversity sweep.
+        try:
+            self.temperature = float(os.environ.get("EDA_LLM_TEMPERATURE", "0"))
+        except ValueError:
+            self.temperature = 0.0
         self.timeout = max(1.0, float(os.environ.get("DEEPSEEK_TIMEOUT_S", "45")))
-        self.max_tokens = min(8192, max(256, int(
+        self.max_tokens = min(16384, max(256, int(
             os.environ.get("DEEPSEEK_MAX_TOKENS", "4096"))))
         # Thinking is off by default: the program planner wants compact
         # schema-constrained output.  The semantic enricher has to reason about
@@ -187,6 +195,7 @@ coverage feedback is unavailable. Do not include Markdown or additional keys.
                 {"role": "user", "content": prompt},
             ],
             "max_tokens": int(max_tokens or self.max_tokens),
+            "temperature": self.temperature,
             # DeepSeek-V4 enables thinking by default.  Left configurable
             # because the two callers want different things: planning wants
             # compact output, bit-field reasoning may benefit from CoT.
@@ -215,6 +224,7 @@ coverage feedback is unavailable. Do not include Markdown or additional keys.
         return content, {
             "status": status, "model": self.model,
             "finish_reason": finish_reason,
+            "max_tokens": int(max_tokens or self.max_tokens),
             "usage": {key: int(value) for key, value in usage.items()
                       if key in ("prompt_tokens", "completion_tokens",
                                  "total_tokens")
