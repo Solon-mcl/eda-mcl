@@ -459,6 +459,66 @@ bin 全缺、残留的角色召回缺口是关键字表没预料到的散文。`
 （候选池 72 → 24）。对齐两套正则后，短名变体从 **-16 恢复到 -1**；改成角色驱动后，这类
 "判对了却用不上"的缺陷整类消失。
 
+### 覆盖率缺口诊断（30k RTL，2026-09-27）
+
+**先说结论：DMA 已满覆盖（92/92），「低」的只有 SPI 这一对。** 而且缺的 bin **不是不可达** —— 
+我用手写脚本实测：**spi_master 缺失的 45 个里有 26 个（58%）被 27 次「写该值 → 跑一次传输」的
+组合拿下了**，其中包括最复杂的 `hold_last_frame`（需要多帧 + 最后一帧 + HOLD_SS 驻留）。
+
+| DUT | 30k RTL | 缺失 | 缺的是什么 |
+|---|---|---|---|
+| dma_xfer_public | **92/92** | 0 | —— |
+| spi_master_public | 75/120 | 45 | 34 个「配置值 ∧ 传输进行中」、4 个 HOLD_SS 驻留、3 个 RX 真收到数据、3 个 abort→恢复、1 个多帧最后一帧 |
+| spi_xfer_public | 62/86 | 24 | 15 个「配置值 ∧ 传输进行中」、6 个 abort→恢复、2 个 RX 真收到数据、1 个跨帧完成 |
+
+**`_active` 是主开关**：覆盖模型对绝大多数 bin 要求
+`active and signal == value`（`_active` = FSM 不在 IDLE/SLEEP）。只写寄存器、不启动传输，
+一分覆盖率都拿不到。
+
+四个具体原因，按影响排序：
+
+**① 派生信号没有对应字段 —— spi_master 的 `protocol`。** 它的解码是
+`frf = CTRLR0[7:6]`、`scph = CTRLR0[8]`，然后
+
+| bin 名 | 实际需要 |
+|---|---|
+| `protocol_mode.spi0` | `frf=0 且 scph=0` |
+| `protocol_mode.spi1` | **`frf=0 且 scph=1`**（靠 bit 8，不是 FRF 字段） |
+| `protocol_mode.ssp` | `frf=1`（且传输需要 `ss_in_n=0`） |
+| microwire | `frf=2`（`protocol` 值为 3，**没有对应 bin**） |
+
+把 `1`/`2` 写进 FRF **并不产生** "spi1"/"ssp"。由于没有一个字段叫 `protocol`，位域反查
+编译不出它 → `protocol_x_*` 目标永远留在 unresolved → **spi1/ssp 模式从不运行** →
+挂在它们 FSM 路径上的 `fsm_state.hold_ss`、`hold_ss_cnt_boundary`（4）、`hold_last_frame`、
+`mwpop`、`wait_ready`、`clear_ready` 全部连带缺失。这一条单独解释了约 20 个 bin。
+（spi_xfer 没有这个问题：它的 `protocol` 就是 `frf` 本身，所以它的 6 个 `protocol_x_tmod`
+本地就编译出来了。）
+
+**② 程序不组合「配置值 + 传输」。** 策略的程序是单一用途的：一个程序做值扫描，另一个程序
+配好 + 使能 + 推数据 + 等待。而覆盖模型要的是**两者同时成立**。实测把这两件事写在一起
+（`dfs=3/4/8/16/31`、`tmod=1/2/3`、`ser=2/8`、`mwcr=4/7` 各配一次传输）就能拿下
+`eff_dfs_boundary` 5 个、`tmod.tmod_1`、`protocol_x_eff_dfs_boundary` 3 个、
+`protocol_x_tmod.ssp_tmod2/3` 等。
+
+**③ 需要刺激本身产生时序模式 —— 这一类是真的能力缺口。**
+
+| 需求 | 现状 |
+|---|---|
+| RX 真收到数据（`rx_data_boundary` 3、`risr_boundary` 3、`rx_fifo_level_boundary.rx_full`） | 要按 sclk 节拍逐位驱动 `rxd`（要 `0x55`/`0xAA` 就得逐位交替）。策略把 `rxd` 当静态标量，**没有「逐周期串行模式」这个概念** |
+| abort→恢复（`seq_a` 3 + spi_xfer 6） | 要在传输中途翻转 `ss_in_n` 极性触发 abort，再跑一次完整传输 |
+| `mst_collision`（DCO L 冲突） | 需要特定的片上冲突条件 |
+
+**④ 值域边界没覆盖到**：`eff_cfs_boundary.cfs_12/15`（`ctrlr0[19:16]`）、
+`mwcr_boundary.mwcr_full`、`ss_sel.slave_2` 属于这类，机制上同 ②。
+
+**要点**：`eff_dfs = dfs`（**没有夹取**），所以 `dfs_3/4/8/16/31` 都是直接可写的；
+只有 `eff_cfs = max(cfs_raw, spec_cfs_min)` 有夹取（本地 `spec_cfs_min=8`），
+因此 `cfs_12/15` 可写、而「CFS 被夹到隐藏最小值」那个 condition bin 需要 `cfs_raw < 8`。
+
+**缺口的性质判断**：②④ 是**策略的组合能力**问题（可修，代价是程序更长、更吃预算）；
+③ 是**动作词汇**问题（当前宏不会生成逐周期串行模式和多阶段 abort 序列，需要新的程序族）；
+① 是**解析/编译**问题（派生信号无法反查，需要把「信号 = 多个位域的组合」编译出来）。
+
 ## 14. 已知边界
 
 1. **公开包与赛题原文的 DUT 对不上**：题面是 AES / SPI 主设备 / 温控，仓库里是 DMA / SPI master / SPI xfer。当前所有数字只能当开发证据，正式镜像到手后必须重审计重跑。

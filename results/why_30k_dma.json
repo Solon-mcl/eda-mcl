@@ -1,0 +1,3378 @@
+[
+  {
+    "dut": "dma_xfer_public",
+    "backend": "verilator",
+    "agent": "full",
+    "algorithm_variant": "m8_1_trace_learning",
+    "seed": 260923,
+    "steps": 30000,
+    "interval": 1000,
+    "curve": [
+      [
+        0,
+        0.0
+      ],
+      [
+        1000,
+        0.6086956521739131
+      ],
+      [
+        2000,
+        0.8478260869565217
+      ],
+      [
+        3000,
+        0.8804347826086957
+      ],
+      [
+        4000,
+        0.8913043478260869
+      ],
+      [
+        5000,
+        0.9456521739130435
+      ],
+      [
+        6000,
+        0.9565217391304348
+      ],
+      [
+        7000,
+        0.9565217391304348
+      ],
+      [
+        8000,
+        0.9782608695652174
+      ],
+      [
+        9000,
+        0.9782608695652174
+      ],
+      [
+        10000,
+        0.9782608695652174
+      ],
+      [
+        11000,
+        0.9782608695652174
+      ],
+      [
+        12000,
+        0.9782608695652174
+      ],
+      [
+        13000,
+        0.9782608695652174
+      ],
+      [
+        14000,
+        1.0
+      ],
+      [
+        15000,
+        1.0
+      ],
+      [
+        16000,
+        1.0
+      ],
+      [
+        17000,
+        1.0
+      ],
+      [
+        18000,
+        1.0
+      ],
+      [
+        19000,
+        1.0
+      ],
+      [
+        20000,
+        1.0
+      ],
+      [
+        21000,
+        1.0
+      ],
+      [
+        22000,
+        1.0
+      ],
+      [
+        23000,
+        1.0
+      ],
+      [
+        24000,
+        1.0
+      ],
+      [
+        25000,
+        1.0
+      ],
+      [
+        26000,
+        1.0
+      ],
+      [
+        27000,
+        1.0
+      ],
+      [
+        28000,
+        1.0
+      ],
+      [
+        29000,
+        1.0
+      ],
+      [
+        30000,
+        1.0
+      ]
+    ],
+    "covered_bins": 92,
+    "total_bins": 92,
+    "coverage": 1.0,
+    "missing_bins": [],
+    "elapsed_seconds": 14.247880548999092,
+    "initialization_seconds": 0.13416615999813075,
+    "auc": 28456.521739130436,
+    "normalized_auc": 0.9485507246376812,
+    "invalid_actions": 0,
+    "secret_override": false,
+    "first_hit_cycles": {
+      "0": 1,
+      "1": 69,
+      "2": 70,
+      "3": 1,
+      "4": 171,
+      "5": 172,
+      "6": 1,
+      "7": 273,
+      "8": 274,
+      "9": 1,
+      "10": 375,
+      "11": 376,
+      "12": 1,
+      "13": 172,
+      "14": 274,
+      "15": 376,
+      "16": 1,
+      "17": 4474,
+      "18": 1,
+      "19": 138,
+      "20": 240,
+      "21": 342,
+      "22": 699,
+      "23": 1687,
+      "24": 2859,
+      "25": 4133,
+      "26": 1,
+      "27": 103,
+      "28": 205,
+      "29": 307,
+      "30": 1,
+      "31": 870,
+      "32": 1,
+      "33": 1380,
+      "34": 1,
+      "35": 410,
+      "36": 938,
+      "37": 1346,
+      "38": 1,
+      "39": 19,
+      "40": 427,
+      "41": 955,
+      "42": 1,
+      "43": 53,
+      "44": 972,
+      "45": 1380,
+      "46": 1975,
+      "47": 1396,
+      "48": 2515,
+      "49": 3735,
+      "50": 1416,
+      "51": 1,
+      "52": 1524,
+      "53": 172,
+      "54": 1632,
+      "55": 274,
+      "56": 1380,
+      "57": 376,
+      "58": 1975,
+      "59": 1504,
+      "60": 2713,
+      "61": 13514,
+      "62": 70,
+      "63": 1380,
+      "64": 1,
+      "65": 4474,
+      "66": 410,
+      "67": 5216,
+      "68": 1346,
+      "69": 7016,
+      "70": 1,
+      "71": 1380,
+      "72": 4149,
+      "73": 4133,
+      "74": 138,
+      "75": 1488,
+      "76": 1975,
+      "77": 1396,
+      "78": 7678,
+      "79": 13406,
+      "80": 71,
+      "81": 871,
+      "82": 1415,
+      "83": 1384,
+      "84": 1397,
+      "85": 871,
+      "86": 870,
+      "87": 71,
+      "88": 3,
+      "89": 71,
+      "90": 874,
+      "91": 1505
+    },
+    "predict_mean_ms": 0.038682164666666664,
+    "predict_p99_ms": 0.14392803999999934,
+    "algorithm_parameters": {
+      "joint_candidates": true,
+      "adaptive_joint_ranking": true,
+      "joint_max_failed_attempts": "auto",
+      "adaptive_joint_max_candidates": 8,
+      "field_transaction_templates": true,
+      "robust_field_writes": true,
+      "field_write_repeats": 16,
+      "generic_sequence_search": true,
+      "generic_trace_learning": true,
+      "llm_enrich": false,
+      "llm_model": "auto",
+      "generic_sequence_candidate_count": 234,
+      "llm_joint_candidate_count": 0,
+      "llm_sequence_candidate_count": 0,
+      "generic_sequence_applicable": true,
+      "generic_sequence_explicit_targets": true,
+      "generic_sequence_native_candidates": 0,
+      "generic_sequence_immediate": false,
+      "generic_sequence_started": true,
+      "generic_trace_seed_count": 22,
+      "generic_trace_candidate_count": 218,
+      "generic_trace_successes": 0,
+      "generic_trace_bootstrap_gains": 0,
+      "generic_trace_failures": 0,
+      "generic_trace_exploration_allowed": false,
+      "effective_joint_retry_budget": 3,
+      "adaptive_joint_ranking_applied": false
+    },
+    "llm_status": {
+      "status": "disabled",
+      "model": "deepseek-flash",
+      "latency_s": 4.316400008974597e-05,
+      "usage": {}
+    },
+    "llm_enrichment": {
+      "status": "disabled",
+      "model": null,
+      "latency_s": 0.0,
+      "usage": {},
+      "finish_reason": null,
+      "max_tokens": null,
+      "accepted": {
+        "field_roles": 0,
+        "joint_writes": 0,
+        "sequences": 0
+      },
+      "sequences_switch": null,
+      "thinking": null,
+      "cache": null,
+      "hold_clamped": 0,
+      "rejected": 0,
+      "rejected_sample": []
+    },
+    "neural_macro_trace": [
+      "configure",
+      "control",
+      "temporal",
+      "recovery",
+      "recovery",
+      "recovery",
+      "recovery",
+      "configure",
+      "recovery",
+      "control",
+      "recovery",
+      "temporal",
+      "configure",
+      "recovery",
+      "temporal",
+      "recovery",
+      "recovery",
+      "configure",
+      "recovery",
+      "control",
+      "temporal",
+      "recovery",
+      "configure",
+      "recovery",
+      "recovery",
+      "control",
+      "configure",
+      "temporal",
+      "control",
+      "recovery",
+      "configure",
+      "control",
+      "recovery",
+      "recovery",
+      "control",
+      "temporal",
+      "control",
+      "recovery",
+      "configure",
+      "temporal",
+      "configure",
+      "recovery",
+      "temporal",
+      "control",
+      "control",
+      "recovery",
+      "temporal",
+      "recovery",
+      "recovery",
+      "temporal",
+      "configure",
+      "configure",
+      "recovery",
+      "control",
+      "recovery",
+      "configure",
+      "recovery",
+      "temporal",
+      "control",
+      "control",
+      "temporal",
+      "recovery",
+      "recovery",
+      "configure",
+      "control",
+      "recovery",
+      "recovery",
+      "recovery",
+      "configure",
+      "recovery",
+      "temporal",
+      "control",
+      "recovery",
+      "control",
+      "recovery",
+      "temporal",
+      "recovery",
+      "recovery",
+      "configure",
+      "recovery",
+      "control",
+      "recovery",
+      "recovery",
+      "recovery",
+      "configure",
+      "temporal",
+      "recovery",
+      "control",
+      "recovery",
+      "control",
+      "recovery",
+      "temporal",
+      "recovery",
+      "recovery",
+      "recovery"
+    ],
+    "joint_candidate_count": 0,
+    "joint_candidate_names": [],
+    "joint_programs_completed": 0,
+    "joint_program_new_bins": 0,
+    "generic_sequence_programs_completed": 4,
+    "generic_sequence_program_new_bins": 0,
+    "generic_trace_programs_completed": 0,
+    "generic_trace_program_new_bins": 0,
+    "program_trace": [
+      {
+        "macro": "configure",
+        "cycles": 102,
+        "new_bins": 25,
+        "new_bin_indices": [
+          0,
+          1,
+          2,
+          3,
+          6,
+          9,
+          12,
+          16,
+          18,
+          26,
+          30,
+          32,
+          34,
+          38,
+          39,
+          42,
+          43,
+          51,
+          62,
+          64,
+          70,
+          80,
+          87,
+          88,
+          89
+        ],
+        "context": {
+          "step": 0,
+          "max_steps": 30000,
+          "covered_bins": 0,
+          "target_weights": {
+            "configure": 0.3294117647058824,
+            "control": 0.2985294117647058,
+            "temporal": 0.3720588235294118,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 0,
+          "mode": 0,
+          "burst": 0,
+          "boundary_length": 0,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 102,
+        "new_bins": 7,
+        "new_bin_indices": [
+          4,
+          5,
+          13,
+          19,
+          27,
+          53,
+          74
+        ],
+        "context": {
+          "step": 102,
+          "max_steps": 30000,
+          "covered_bins": 25,
+          "target_weights": {
+            "configure": 0.2770853307766059,
+            "control": 0.32406519654841803,
+            "temporal": 0.3988494726749761,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 2097152,
+          "mode": 0,
+          "burst": 1,
+          "boundary_length": 0,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 102,
+        "new_bins": 6,
+        "new_bin_indices": [
+          7,
+          8,
+          14,
+          20,
+          28,
+          55
+        ],
+        "context": {
+          "step": 204,
+          "max_steps": 30000,
+          "covered_bins": 32,
+          "target_weights": {
+            "configure": 0.25289778714436245,
+            "control": 0.3350895679662803,
+            "temporal": 0.4120126448893573,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 4194304,
+          "mode": 0,
+          "burst": 2,
+          "boundary_length": 0,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 102,
+        "new_bins": 6,
+        "new_bin_indices": [
+          10,
+          11,
+          15,
+          21,
+          29,
+          57
+        ],
+        "context": {
+          "step": 306,
+          "max_steps": 30000,
+          "covered_bins": 38,
+          "target_weights": {
+            "configure": 0.21828571428571422,
+            "control": 0.35200000000000004,
+            "temporal": 0.4297142857142857,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 3,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 6291456,
+          "mode": 0,
+          "burst": 3,
+          "boundary_length": 0,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 85,
+        "new_bins": 3,
+        "new_bin_indices": [
+          35,
+          40,
+          66
+        ],
+        "context": {
+          "step": 408,
+          "max_steps": 30000,
+          "covered_bins": 44,
+          "target_weights": {
+            "configure": 0.1772784019975031,
+            "control": 0.37203495630461925,
+            "temporal": 0.4506866416978777,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 65537,
+          "mode": 1,
+          "burst": 0,
+          "boundary_length": 1,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 85,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 493,
+          "max_steps": 30000,
+          "covered_bins": 47,
+          "target_weights": {
+            "configure": 0.1558784676354029,
+            "control": 0.36723910171730517,
+            "temporal": 0.47688243064729197,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 2162689,
+          "mode": 1,
+          "burst": 1,
+          "boundary_length": 1,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 85,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 578,
+          "max_steps": 30000,
+          "covered_bins": 47,
+          "target_weights": {
+            "configure": 0.1558784676354029,
+            "control": 0.36723910171730517,
+            "temporal": 0.47688243064729197,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 4259841,
+          "mode": 1,
+          "burst": 2,
+          "boundary_length": 1,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 273,
+        "new_bins": 6,
+        "new_bin_indices": [
+          22,
+          31,
+          81,
+          85,
+          86,
+          90
+        ],
+        "context": {
+          "step": 663,
+          "max_steps": 30000,
+          "covered_bins": 47,
+          "target_weights": {
+            "configure": 0.1558784676354029,
+            "control": 0.36723910171730517,
+            "temporal": 0.47688243064729197,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "field_selected_conflict": true,
+          "instances": 4,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "packed": 8388613,
+          "mode": 0,
+          "burst": 4,
+          "length": 5,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 102,
+        "new_bins": 3,
+        "new_bin_indices": [
+          36,
+          41,
+          44
+        ],
+        "context": {
+          "step": 936,
+          "max_steps": 30000,
+          "covered_bins": 53,
+          "target_weights": {
+            "configure": 0.1575037147102526,
+            "control": 0.39524517087667166,
+            "temporal": 0.4472511144130758,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 196606,
+          "mode": 2,
+          "burst": 0,
+          "boundary_length": 65534,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 102,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 1038,
+          "max_steps": 30000,
+          "covered_bins": 56,
+          "target_weights": {
+            "configure": 0.1098901098901099,
+            "control": 0.4175824175824176,
+            "temporal": 0.4725274725274725,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 2293758,
+          "mode": 2,
+          "burst": 1,
+          "boundary_length": 65534,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 102,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 1140,
+          "max_steps": 30000,
+          "covered_bins": 56,
+          "target_weights": {
+            "configure": 0.1098901098901099,
+            "control": 0.4175824175824176,
+            "temporal": 0.4725274725274725,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 4390910,
+          "mode": 2,
+          "burst": 2,
+          "boundary_length": 65534,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 102,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 1242,
+          "max_steps": 30000,
+          "covered_bins": 56,
+          "target_weights": {
+            "configure": 0.1098901098901099,
+            "control": 0.4175824175824176,
+            "temporal": 0.4725274725274725,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 3,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 6488062,
+          "mode": 2,
+          "burst": 3,
+          "boundary_length": 65534,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 102,
+        "new_bins": 13,
+        "new_bin_indices": [
+          33,
+          37,
+          45,
+          47,
+          50,
+          56,
+          63,
+          68,
+          71,
+          77,
+          82,
+          83,
+          84
+        ],
+        "context": {
+          "step": 1344,
+          "max_steps": 30000,
+          "covered_bins": 56,
+          "target_weights": {
+            "configure": 0.1098901098901099,
+            "control": 0.4175824175824176,
+            "temporal": 0.4725274725274725,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 262143,
+          "mode": 3,
+          "burst": 0,
+          "boundary_length": 65535,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 102,
+        "new_bins": 4,
+        "new_bin_indices": [
+          52,
+          59,
+          75,
+          91
+        ],
+        "context": {
+          "step": 1446,
+          "max_steps": 30000,
+          "covered_bins": 69,
+          "target_weights": {
+            "configure": 0.11192214111922143,
+            "control": 0.437956204379562,
+            "temporal": 0.45012165450121655,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 2359295,
+          "mode": 3,
+          "burst": 1,
+          "boundary_length": 65535,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 102,
+        "new_bins": 1,
+        "new_bin_indices": [
+          54
+        ],
+        "context": {
+          "step": 1548,
+          "max_steps": 30000,
+          "covered_bins": 73,
+          "target_weights": {
+            "configure": 0.13897280966767372,
+            "control": 0.45317220543806647,
+            "temporal": 0.4078549848942598,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 4456447,
+          "mode": 3,
+          "burst": 2,
+          "boundary_length": 65535,
+          "wait_cycles": 32
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 273,
+        "new_bins": 1,
+        "new_bin_indices": [
+          23
+        ],
+        "context": {
+          "step": 1650,
+          "max_steps": 30000,
+          "covered_bins": 74,
+          "target_weights": {
+            "configure": 0.14790996784565918,
+            "control": 0.45016077170418006,
+            "temporal": 0.40192926045016075,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "field_selected_conflict": true,
+          "instances": 4,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "packed": 10551298,
+          "mode": 1,
+          "burst": 5,
+          "length": 2,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 134,
+        "new_bins": 3,
+        "new_bin_indices": [
+          46,
+          58,
+          76
+        ],
+        "context": {
+          "step": 1923,
+          "max_steps": 30000,
+          "covered_bins": 75,
+          "target_weights": {
+            "configure": 0.11371237458193982,
+            "control": 0.4682274247491639,
+            "temporal": 0.4180602006688963,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 262144,
+          "mode": 4,
+          "burst": 0,
+          "boundary_length": 0,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 134,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 2057,
+          "max_steps": 30000,
+          "covered_bins": 78,
+          "target_weights": {
+            "configure": 0.13934426229508198,
+            "control": 0.49180327868852464,
+            "temporal": 0.36885245901639346,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 2359296,
+          "mode": 4,
+          "burst": 1,
+          "boundary_length": 0,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 134,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 2191,
+          "max_steps": 30000,
+          "covered_bins": 78,
+          "target_weights": {
+            "configure": 0.13934426229508198,
+            "control": 0.49180327868852464,
+            "temporal": 0.36885245901639346,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 4456448,
+          "mode": 4,
+          "burst": 2,
+          "boundary_length": 0,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 134,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 2325,
+          "max_steps": 30000,
+          "covered_bins": 78,
+          "target_weights": {
+            "configure": 0.13934426229508198,
+            "control": 0.49180327868852464,
+            "temporal": 0.36885245901639346,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 3,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 6553600,
+          "mode": 4,
+          "burst": 3,
+          "boundary_length": 0,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 117,
+        "new_bins": 1,
+        "new_bin_indices": [
+          48
+        ],
+        "context": {
+          "step": 2459,
+          "max_steps": 30000,
+          "covered_bins": 78,
+          "target_weights": {
+            "configure": 0.13934426229508198,
+            "control": 0.49180327868852464,
+            "temporal": 0.36885245901639346,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 327681,
+          "mode": 5,
+          "burst": 0,
+          "boundary_length": 1,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 117,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 2576,
+          "max_steps": 30000,
+          "covered_bins": 79,
+          "target_weights": {
+            "configure": 0.14847161572052403,
+            "control": 0.5240174672489083,
+            "temporal": 0.3275109170305677,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 2424833,
+          "mode": 5,
+          "burst": 1,
+          "boundary_length": 1,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 117,
+        "new_bins": 1,
+        "new_bin_indices": [
+          60
+        ],
+        "context": {
+          "step": 2693,
+          "max_steps": 30000,
+          "covered_bins": 79,
+          "target_weights": {
+            "configure": 0.14847161572052403,
+            "control": 0.5240174672489083,
+            "temporal": 0.3275109170305677,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 4521985,
+          "mode": 5,
+          "burst": 2,
+          "boundary_length": 1,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 337,
+        "new_bins": 1,
+        "new_bin_indices": [
+          24
+        ],
+        "context": {
+          "step": 2810,
+          "max_steps": 30000,
+          "covered_bins": 80,
+          "target_weights": {
+            "configure": 0.1626794258373206,
+            "control": 0.5263157894736843,
+            "temporal": 0.31100478468899523,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "field_selected_conflict": true,
+          "instances": 4,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "packed": 12713989,
+          "mode": 2,
+          "burst": 6,
+          "length": 5,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 134,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 3147,
+          "max_steps": 30000,
+          "covered_bins": 81,
+          "target_weights": {
+            "configure": 0.11167512690355332,
+            "control": 0.5583756345177665,
+            "temporal": 0.3299492385786802,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 458750,
+          "mode": 6,
+          "burst": 0,
+          "boundary_length": 65534,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 134,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 3281,
+          "max_steps": 30000,
+          "covered_bins": 81,
+          "target_weights": {
+            "configure": 0.11167512690355332,
+            "control": 0.5583756345177665,
+            "temporal": 0.3299492385786802,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 2555902,
+          "mode": 6,
+          "burst": 1,
+          "boundary_length": 65534,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 134,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 3415,
+          "max_steps": 30000,
+          "covered_bins": 81,
+          "target_weights": {
+            "configure": 0.11167512690355332,
+            "control": 0.5583756345177665,
+            "temporal": 0.3299492385786802,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 4653054,
+          "mode": 6,
+          "burst": 2,
+          "boundary_length": 65534,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 134,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 3549,
+          "max_steps": 30000,
+          "covered_bins": 81,
+          "target_weights": {
+            "configure": 0.11167512690355332,
+            "control": 0.5583756345177665,
+            "temporal": 0.3299492385786802,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 3,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 6750206,
+          "mode": 6,
+          "burst": 3,
+          "boundary_length": 65534,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 134,
+        "new_bins": 1,
+        "new_bin_indices": [
+          49
+        ],
+        "context": {
+          "step": 3683,
+          "max_steps": 30000,
+          "covered_bins": 81,
+          "target_weights": {
+            "configure": 0.11167512690355332,
+            "control": 0.5583756345177665,
+            "temporal": 0.3299492385786802,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 524287,
+          "mode": 7,
+          "burst": 0,
+          "boundary_length": 65535,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 134,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 3817,
+          "max_steps": 30000,
+          "covered_bins": 82,
+          "target_weights": {
+            "configure": 0.1208791208791209,
+            "control": 0.6043956043956045,
+            "temporal": 0.27472527472527475,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 2621439,
+          "mode": 7,
+          "burst": 1,
+          "boundary_length": 65535,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 134,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 3951,
+          "max_steps": 30000,
+          "covered_bins": 82,
+          "target_weights": {
+            "configure": 0.1208791208791209,
+            "control": 0.6043956043956045,
+            "temporal": 0.27472527472527475,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 4718591,
+          "mode": 7,
+          "burst": 2,
+          "boundary_length": 65535,
+          "wait_cycles": 64
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 337,
+        "new_bins": 3,
+        "new_bin_indices": [
+          25,
+          72,
+          73
+        ],
+        "context": {
+          "step": 4085,
+          "max_steps": 30000,
+          "covered_bins": 82,
+          "target_weights": {
+            "configure": 0.1208791208791209,
+            "control": 0.6043956043956045,
+            "temporal": 0.27472527472527475,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "field_selected_conflict": true,
+          "instances": 4,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "packed": 14876674,
+          "mode": 3,
+          "burst": 7,
+          "length": 2,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 198,
+        "new_bins": 2,
+        "new_bin_indices": [
+          17,
+          65
+        ],
+        "context": {
+          "step": 4422,
+          "max_steps": 30000,
+          "covered_bins": 85,
+          "target_weights": {
+            "configure": 0.07692307692307693,
+            "control": 0.6923076923076923,
+            "temporal": 0.23076923076923078,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 524288,
+          "mode": 8,
+          "burst": 0,
+          "boundary_length": 0,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 198,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 4620,
+          "max_steps": 30000,
+          "covered_bins": 87,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.7,
+            "temporal": 0.3,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 2621440,
+          "mode": 8,
+          "burst": 1,
+          "boundary_length": 0,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 198,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 4818,
+          "max_steps": 30000,
+          "covered_bins": 87,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.7,
+            "temporal": 0.3,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 4718592,
+          "mode": 8,
+          "burst": 2,
+          "boundary_length": 0,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 198,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 5016,
+          "max_steps": 30000,
+          "covered_bins": 87,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.7,
+            "temporal": 0.3,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 3,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 6815744,
+          "mode": 8,
+          "burst": 3,
+          "boundary_length": 0,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 181,
+        "new_bins": 1,
+        "new_bin_indices": [
+          67
+        ],
+        "context": {
+          "step": 5214,
+          "max_steps": 30000,
+          "covered_bins": 87,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.7,
+            "temporal": 0.3,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 589825,
+          "mode": 9,
+          "burst": 0,
+          "boundary_length": 1,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 181,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 5395,
+          "max_steps": 30000,
+          "covered_bins": 88,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.625,
+            "temporal": 0.375,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 2686977,
+          "mode": 9,
+          "burst": 1,
+          "boundary_length": 1,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 181,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 5576,
+          "max_steps": 30000,
+          "covered_bins": 88,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.625,
+            "temporal": 0.375,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 4784129,
+          "mode": 9,
+          "burst": 2,
+          "boundary_length": 1,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 465,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 5757,
+          "max_steps": 30000,
+          "covered_bins": 88,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.625,
+            "temporal": 0.375,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "field_selected_conflict": true,
+          "instances": 4,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "packed": 8650757,
+          "mode": 4,
+          "burst": 4,
+          "length": 5,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 198,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 6222,
+          "max_steps": 30000,
+          "covered_bins": 88,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.625,
+            "temporal": 0.375,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 720894,
+          "mode": 10,
+          "burst": 0,
+          "boundary_length": 65534,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 198,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 6420,
+          "max_steps": 30000,
+          "covered_bins": 88,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.625,
+            "temporal": 0.375,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 2818046,
+          "mode": 10,
+          "burst": 1,
+          "boundary_length": 65534,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 198,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 6618,
+          "max_steps": 30000,
+          "covered_bins": 88,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.625,
+            "temporal": 0.375,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 4915198,
+          "mode": 10,
+          "burst": 2,
+          "boundary_length": 65534,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 198,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 6816,
+          "max_steps": 30000,
+          "covered_bins": 88,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.625,
+            "temporal": 0.375,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 3,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 7012350,
+          "mode": 10,
+          "burst": 3,
+          "boundary_length": 65534,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 198,
+        "new_bins": 1,
+        "new_bin_indices": [
+          69
+        ],
+        "context": {
+          "step": 7014,
+          "max_steps": 30000,
+          "covered_bins": 88,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.625,
+            "temporal": 0.375,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 786431,
+          "mode": 11,
+          "burst": 0,
+          "boundary_length": 65535,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 198,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 7212,
+          "max_steps": 30000,
+          "covered_bins": 89,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 2883583,
+          "mode": 11,
+          "burst": 1,
+          "boundary_length": 65535,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 198,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 7410,
+          "max_steps": 30000,
+          "covered_bins": 89,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 4980735,
+          "mode": 11,
+          "burst": 2,
+          "boundary_length": 65535,
+          "wait_cycles": 128
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 465,
+        "new_bins": 1,
+        "new_bin_indices": [
+          78
+        ],
+        "context": {
+          "step": 7608,
+          "max_steps": 30000,
+          "covered_bins": 89,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "field_selected_conflict": true,
+          "instances": 4,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "packed": 10813442,
+          "mode": 5,
+          "burst": 5,
+          "length": 2,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 326,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 8073,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 786432,
+          "mode": 12,
+          "burst": 0,
+          "boundary_length": 0,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 326,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 8399,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 2883584,
+          "mode": 12,
+          "burst": 1,
+          "boundary_length": 0,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 326,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 8725,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 4980736,
+          "mode": 12,
+          "burst": 2,
+          "boundary_length": 0,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 326,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 9051,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 3,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 7077888,
+          "mode": 12,
+          "burst": 3,
+          "boundary_length": 0,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 309,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 9377,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 851969,
+          "mode": 13,
+          "burst": 0,
+          "boundary_length": 1,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 309,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 9686,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 2949121,
+          "mode": 13,
+          "burst": 1,
+          "boundary_length": 1,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 309,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 9995,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 5046273,
+          "mode": 13,
+          "burst": 2,
+          "boundary_length": 1,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 729,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 10304,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "field_selected_conflict": true,
+          "instances": 4,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "packed": 12976133,
+          "mode": 6,
+          "burst": 6,
+          "length": 5,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 21,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 11033,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "generic_sequence_search": true,
+          "generic_sequence_candidate": "capability.field.i0.p1",
+          "sequence_family": "capability_field_sequence"
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 326,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 11054,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 983038,
+          "mode": 14,
+          "burst": 0,
+          "boundary_length": 65534,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 326,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 11380,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 3080190,
+          "mode": 14,
+          "burst": 1,
+          "boundary_length": 65534,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 326,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 11706,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 5177342,
+          "mode": 14,
+          "burst": 2,
+          "boundary_length": 65534,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 326,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 12032,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 3,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 7274494,
+          "mode": 14,
+          "burst": 3,
+          "boundary_length": 65534,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 326,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 12358,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 1048575,
+          "mode": 15,
+          "burst": 0,
+          "boundary_length": 65535,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 326,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 12684,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 3145727,
+          "mode": 15,
+          "burst": 1,
+          "boundary_length": 65535,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 326,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 13010,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 5242879,
+          "mode": 15,
+          "burst": 2,
+          "boundary_length": 65535,
+          "wait_cycles": 256
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 729,
+        "new_bins": 2,
+        "new_bin_indices": [
+          61,
+          79
+        ],
+        "context": {
+          "step": 13336,
+          "max_steps": 30000,
+          "covered_bins": 90,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.5,
+            "temporal": 0.5,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "field_selected_conflict": true,
+          "instances": 4,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "packed": 15138818,
+          "mode": 7,
+          "burst": 7,
+          "length": 2,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 14065,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 1048576,
+          "mode": 16,
+          "burst": 0,
+          "boundary_length": 0,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 14655,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 3145728,
+          "mode": 16,
+          "burst": 1,
+          "boundary_length": 0,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 15245,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 5242880,
+          "mode": 16,
+          "burst": 2,
+          "boundary_length": 0,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 15835,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 3,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 7340032,
+          "mode": 16,
+          "burst": 3,
+          "boundary_length": 0,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 573,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 16425,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 1114113,
+          "mode": 17,
+          "burst": 0,
+          "boundary_length": 1,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 30,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 16998,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "generic_sequence_search": true,
+          "generic_sequence_candidate": "capability.field.i0.p2",
+          "sequence_family": "capability_field_sequence"
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 573,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 17028,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 3211265,
+          "mode": 17,
+          "burst": 1,
+          "boundary_length": 1,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 573,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 17601,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 5308417,
+          "mode": 17,
+          "burst": 2,
+          "boundary_length": 1,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 729,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 18174,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "field_selected_conflict": true,
+          "instances": 4,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "packed": 8912901,
+          "mode": 8,
+          "burst": 4,
+          "length": 5,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 18903,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 1245182,
+          "mode": 18,
+          "burst": 0,
+          "boundary_length": 65534,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 19493,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 3342334,
+          "mode": 18,
+          "burst": 1,
+          "boundary_length": 65534,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 48,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 20083,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "generic_sequence_search": true,
+          "generic_sequence_candidate": "capability.field.i0.p4",
+          "sequence_family": "capability_field_sequence"
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 20131,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 5439486,
+          "mode": 18,
+          "burst": 2,
+          "boundary_length": 65534,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 20721,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 3,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 7536638,
+          "mode": 18,
+          "burst": 3,
+          "boundary_length": 65534,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 21311,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 1310719,
+          "mode": 19,
+          "burst": 0,
+          "boundary_length": 65535,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 21901,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 3407871,
+          "mode": 19,
+          "burst": 1,
+          "boundary_length": 65535,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 22491,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967295,
+          "destination": 0,
+          "packed": 5505023,
+          "mode": 19,
+          "burst": 2,
+          "boundary_length": 65535,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 729,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 23081,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "field_selected_conflict": true,
+          "instances": 4,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "packed": 11075586,
+          "mode": 9,
+          "burst": 5,
+          "length": 2,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 84,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 23810,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "generic_sequence_search": true,
+          "generic_sequence_candidate": "capability.field.i0.p8",
+          "sequence_family": "capability_field_sequence"
+        }
+      },
+      {
+        "macro": "configure",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 23894,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 1310720,
+          "mode": 20,
+          "burst": 0,
+          "boundary_length": 0,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 24484,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 3407872,
+          "mode": 20,
+          "burst": 1,
+          "boundary_length": 0,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 25074,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 5505024,
+          "mode": 20,
+          "burst": 2,
+          "boundary_length": 0,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 25664,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 3,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 0,
+          "destination": 1,
+          "packed": 7602176,
+          "mode": 20,
+          "burst": 3,
+          "boundary_length": 0,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 573,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 26254,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 1376257,
+          "mode": 21,
+          "burst": 0,
+          "boundary_length": 1,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "control",
+        "cycles": 573,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 26827,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 3473409,
+          "mode": 21,
+          "burst": 1,
+          "boundary_length": 1,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 573,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 27400,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 2,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 1,
+          "destination": 4294967294,
+          "packed": 5570561,
+          "mode": 21,
+          "burst": 2,
+          "boundary_length": 1,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "temporal",
+        "cycles": 729,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 27973,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "field_selected_conflict": true,
+          "instances": 4,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "packed": 13238277,
+          "mode": 10,
+          "burst": 6,
+          "length": 5,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 28702,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 0,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 1507326,
+          "mode": 22,
+          "burst": 0,
+          "boundary_length": 65534,
+          "wait_cycles": 520
+        }
+      },
+      {
+        "macro": "recovery",
+        "cycles": 590,
+        "new_bins": 0,
+        "new_bin_indices": [],
+        "context": {
+          "step": 29292,
+          "max_steps": 30000,
+          "covered_bins": 92,
+          "target_weights": {
+            "configure": 0.0,
+            "control": 0.0,
+            "temporal": 0.0,
+            "recovery": 0.0
+          },
+          "field_selected_transaction": true,
+          "instance": 1,
+          "selectors": [
+            0,
+            1,
+            2
+          ],
+          "source": 4294967294,
+          "destination": 4294967295,
+          "packed": 3604478,
+          "mode": 22,
+          "burst": 1,
+          "boundary_length": 65534,
+          "wait_cycles": 520
+        }
+      }
+    ],
+    "joint_candidate_stats": {}
+  }
+]
