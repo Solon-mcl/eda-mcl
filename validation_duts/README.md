@@ -21,6 +21,18 @@ python tools/run_experiments.py --dut branch_predictor_validation --backend loca
 
 python tools/run_experiments.py --dut watchdog_safety_validation --backend local \
   --agent greedy --steps 300 --interval 50
+
+python tools/run_experiments.py --dut tlb_mmu_validation --backend local \
+  --agent greedy --steps 1500 --interval 100
+
+python tools/run_experiments.py --dut dma_desc_engine_validation --backend local \
+  --agent greedy --steps 1500 --interval 100
+
+python tools/run_experiments.py --dut ecc_memory_validation --backend local \
+  --agent greedy --steps 500 --interval 50
+
+python tools/run_experiments.py --dut noc_router_validation --backend local \
+  --agent greedy --steps 500 --interval 50
 ```
 
 The package is local-simulation-first.  The RTL and SystemVerilog covergroup
@@ -35,3 +47,18 @@ feedback-driven exploration of aliasing and long-lived microarchitectural state.
 `watchdog_safety_validation/watchdog_safety_validation` is a windowed watchdog
 and safety supervisor. It emphasizes long temporal windows, ordered secret-key
 service, configuration locking, timeout reset, and multi-fault escalation.
+
+`tlb_mmu_validation/tlb_mmu_validation` is an ASID-tagged TLB and synthetic
+page-table walker with permission faults, global mappings, fences, and hidden
+replacement/index parameters.
+
+`dma_desc_engine_validation/dma_desc_engine_validation` is a linked descriptor
+engine with legality checks, retry/ack timing, abort, and hidden chain limits.
+
+`ecc_memory_validation/ecc_memory_validation` is an ECC-protected memory with
+fault injection, delayed correction, uncorrectable-error policy, and a salted
+background scrub order.
+
+`noc_router_validation/noc_router_validation` is a five-port virtual-channel
+mesh router with buffered arbitration, credit backpressure, adaptive detours,
+and a deterministic escape VC.

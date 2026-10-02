@@ -16,7 +16,28 @@ import urllib.error
 import urllib.request
 
 
-KNOWN_FAMILIES = {"dma", "spi_master", "spi_xfer", "generic"}
+# A label per DUT family would be a routing table: whoever writes it has to
+# know the families in advance, which is exactly what a general path cannot do.
+# The model still reports a hint, but nothing downstream branches on its value:
+# only a well-formed label is required, and the generic path is the only path.
+_FAMILY_HINT_MAX = 40
+
+
+def _normalise_family_hint(raw):
+    """Keep a well-formed hint without pinning a vocabulary.
+
+    Anything that is not a short identifier degrades to ``generic``.  The
+    caller never selects a strategy from this value, so this is a parse guard
+    rather than a dispatch decision.
+    """
+    if not isinstance(raw, str):
+        return "generic"
+    value = raw.strip().lower()
+    if not value or len(value) > _FAMILY_HINT_MAX:
+        return "generic"
+    if not all(char.isalnum() or char in "_-." for char in value):
+        return "generic"
+    return value
 
 
 def _first_env(*names, default=None):
@@ -106,7 +127,7 @@ class DeepSeekPlanner:
         return f"""Analyze this hardware-verification task and create a safe stimulus plan.
 Return exactly one JSON object with this schema:
 {{
-  "family_hint": "dma|spi_master|spi_xfer|generic",
+  "family": "short lowercase identifier for the interface pattern you recognise",
   "action_dim": positive integer,
   "macro_order": [0,1,2,3 in a useful permutation],
   "program": [
@@ -117,7 +138,8 @@ Return exactly one JSON object with this schema:
   "summary": "short strategy summary"
 }}
 
-Use family_hint only for an exact semantic match; choose generic for any other DUT.
+The family label is informational and never selects a strategy, so describe the
+interface pattern you actually see instead of forcing a fixed list.
 Derive action_dim and every action field from the DUT stimulus mapping. Generate
 legal reset, configuration, boundary, cross, temporal and recovery sequences.
 The program may contain at most 32 entries and should remain useful when repeated
@@ -133,9 +155,8 @@ coverage feedback is unavailable. Do not include Markdown or additional keys.
     def _validate(raw):
         if not isinstance(raw, dict):
             return None
-        family = str(raw.get("family_hint", "generic")).strip().lower()
-        if family not in KNOWN_FAMILIES:
-            family = "generic"
+        family = _normalise_family_hint(
+            raw.get("family_hint", raw.get("family")))
         try:
             dims = int(raw.get("action_dim", 0))
         except (TypeError, ValueError):
@@ -168,7 +189,7 @@ coverage feedback is unavailable. Do not include Markdown or additional keys.
                 continue
             program.append({"action": action, "cycles": cycles})
         return {
-            "family_hint": family,
+            "family_hint": family,   # informational only; nothing routes on it
             "action_dim": dims,
             "macro_order": order,
             "program": program,

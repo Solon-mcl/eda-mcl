@@ -1,0 +1,24 @@
+{
+  "dut_name":"ecc_memory_validation","version":"v1.0","total_bins":72,
+  "coverpoints":[
+    {"name":"state","type":"basic","signal":"state","bins":[{"name":"idle","value":0},{"name":"write","value":1},{"name":"read","value":2},{"name":"correct","value":3},{"name":"uncorrectable","value":4},{"name":"scrub","value":5}]},
+    {"name":"result","type":"basic","signal":"result","bins":[{"name":"none","value":0},{"name":"write","value":1},{"name":"read_clean","value":2},{"name":"sbe_detect","value":3},{"name":"corrected","value":4},{"name":"dbe_detect","value":5},{"name":"inject_single","value":6},{"name":"inject_double","value":7},{"name":"scrub_clean","value":8},{"name":"scrub_correct","value":9},{"name":"scrub_dbe","value":10}]},
+    {"name":"error_count","type":"boundary","signal":"error_class","bins":[{"name":"clean","value":0},{"name":"single","value":1},{"name":"double","value":2},{"name":"poison","value":3}]},
+    {"name":"address","type":"basic","signal":"address","bins":[{"name":"a0","value":0},{"name":"a1","value":1},{"name":"a2","value":2},{"name":"a3","value":3},{"name":"a4","value":4},{"name":"a5","value":5},{"name":"a6","value":6},{"name":"a7","value":7}]},
+    {"name":"syndrome_class","type":"basic","signal":"syndrome_class","bins":[{"name":"s0","value":0},{"name":"s1","value":1},{"name":"s2","value":2},{"name":"s3","value":3}]},
+    {"name":"data_class","type":"boundary","signal":"data_class","bins":[{"name":"zero","value":0},{"name":"ones","value":1},{"name":"aa","value":2},{"name":"other","value":3}]},
+    {"name":"scrub_position","type":"boundary","signal":"scrub_class","bins":[{"name":"first","value":0},{"name":"middle","value":1},{"name":"last","value":2}]},
+    {"name":"backpressure","type":"condition","signal":"stalled","bins":[{"name":"running","value":0},{"name":"stalled","value":1}]},
+    {"name":"op_x_result","type":"cross","signal":"op,result","bins":[{"name":"write_ok","cross":[1,1]},{"name":"read_clean","cross":[2,2]},{"name":"read_sbe","cross":[2,3]},{"name":"read_corrected","cross":[2,4]},{"name":"read_dbe","cross":[2,5]},{"name":"inject_one","cross":[3,6]},{"name":"inject_two","cross":[3,7]},{"name":"scrub_clean","cross":[4,8]},{"name":"scrub_correct","cross":[4,9]},{"name":"scrub_dbe","cross":[4,10]}]},
+    {"name":"addr_x_error","type":"cross","signal":"address,error_class","bins":[{"name":"a0_clean","cross":[0,0]},{"name":"a0_single","cross":[0,1]},{"name":"a0_double","cross":[0,2]},{"name":"a1_clean","cross":[1,0]},{"name":"a1_single","cross":[1,1]},{"name":"a1_double","cross":[1,2]},{"name":"a7_single","cross":[7,1]},{"name":"a7_double","cross":[7,2]}]},
+    {"name":"state_x_stall","type":"cross","signal":"state,stalled","bins":[{"name":"correct_run","cross":[3,0]},{"name":"correct_stall","cross":[3,1]},{"name":"scrub_run","cross":[5,0]},{"name":"scrub_stall","cross":[5,1]}]},
+    {"name":"seq_write_read_clean","type":"seq_hit","seq":"seq1","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_sbe_correction","type":"seq_hit","seq":"seq2","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_dbe_detect","type":"seq_hit","seq":"seq3","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_stall_recover","type":"seq_hit","seq":"seq4","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_scrub_correct","type":"seq_hit","seq":"seq5","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_scrub_dbe","type":"seq_hit","seq":"seq6","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_overwrite_repair","type":"seq_hit","seq":"seq7","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_scrub_wrap","type":"seq_hit","seq":"seq8","bins":[{"name":"hit","value":1}]}
+  ]
+}

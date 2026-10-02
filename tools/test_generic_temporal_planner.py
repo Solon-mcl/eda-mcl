@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import sys
+import os
 from pathlib import Path
 
 import numpy as np
@@ -372,6 +373,60 @@ def test_target_value_drives_action():
     assert writes and writes[0][2] == 2
 
 
+def test_target_program_compilation():
+    spec = """action = [reg_we, reg_addr, reg_wdata, serial_in, rst_n]
+    - `reg_we`: register write enable.
+    - `reg_addr`: register address 0..4.
+    - `reg_wdata`: 32-bit write data.
+    - `serial_in`: serial receive input bit.
+    - `rst_n`: active-low reset.
+    | Address | Name | Mode | Fields |
+    | 0 | CONTROL | RW | [1:0]=MODE |
+    | 1 | ENABLE | RW | [0]=EN |
+    | 2 | DATA | RW | payload port |
+    | 3 | SCALE | RW | whole-word divider |
+    | 4 | STATUS | RO | status only |
+    """
+    ir = build_semantic_ir(spec)
+    targets = [CoverageTargetIR(
+        index=i, coverpoint=name, bin_name=f"v{value}", kind="boundary",
+        signals=(signal,), values=(value,), sequence=None, stage="CFG",
+        difficulty="medium", source="top", macro_hints=("configure",))
+        for i, (name, signal, value) in enumerate((
+            ("mode", "cov_mode", 1),
+            ("scale", "cov_scale", 3),
+            ("status", "cov_status", 1),
+            ("rx_data", "cov_serial_data", 0x55)))]
+    before = {name: os.environ.get(name) for name in
+              ("EDA_TARGET_CONDITION_PROBES", "EDA_TARGET_INPUT_WAVEFORMS")}
+    try:
+        os.environ["EDA_TARGET_CONDITION_PROBES"] = "1"
+        os.environ["EDA_TARGET_INPUT_WAVEFORMS"] = "1"
+        policy = _GenericPolicy(ir.action_dim,
+                                [item.name for item in ir.fields], spec,
+                                semantic_ir=ir, coverage_targets=targets)
+    finally:
+        for name, value in before.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+    candidates = policy._generic_sequence_search.candidates
+    condition = [item for item in candidates if item.metadata.get("family") ==
+                 "target_condition_program"]
+    assert len(condition) == 1
+    assert any(action[0] == 1 and action[1] == 3 and action[2] == 3
+               for action, _cycles in condition[0].steps)
+    assert not any("status" in item.candidate_id for item in condition)
+    wave = [item for item in candidates if item.metadata.get("family") ==
+            "target_input_waveform"]
+    assert wave and wave[0].metadata["target_index"] == 3
+    assert any(action[3] == 1 for action, _cycles in wave[0].steps)
+    search = GenericSequenceSearch(wave)
+    assert search.select(covered_target_indices={3}) is None
+    assert search.select(blocked_families={"target_input_waveform"}) is None
+
+
 def test_semantic_program_encoding():
     ir = build_semantic_ir(SPEC)
     program = semanticize_action_sequence(ir, [{
@@ -381,6 +436,37 @@ def test_semantic_program_encoding():
     roles = {item["role"] for item in program[0]["assignments"]}
     assert "write_enable" in roles and "register_address" in roles
     assert "data_lane" in roles and program[0]["cycles"] == 3
+
+
+def test_fault_site_program():
+    spec = """Eight-word, 32-bit memory.
+    action = [write, read, address, d0..d3, inject, bit_a, bit_b,
+              scrub, stall, reset_n]
+    - `write`: stores one word.
+    - `read`: reads one word.
+    - `address`: word address 0..7.
+    - `inject`: injects faults at `bit_a` and `bit_b`.
+    - `bit_a`: first fault bit position.
+    - `bit_b`: second fault bit position.
+    - `scrub`: scans and repairs one word per cycle.
+    - `stall`: pauses correction.
+    """
+    ir = build_semantic_ir(spec)
+    assert ir.field(8).maximum == ir.field(9).maximum == 31, [
+        (item.name, item.role, item.maximum) for item in ir.fields]
+    policy = _GenericPolicy(ir.action_dim, [item.name for item in ir.fields],
+                            spec, semantic_ir=ir)
+    programs = [item for item in policy._generic_sequence_search.candidates
+                if item.metadata.get("family") == "semantic_fault_sites"]
+    assert len(programs) == 8
+    for program in programs:
+        steps = program.steps
+        # A single fault must remain latent until the scrub sweep. Reading it
+        # here would repair it first and make scrub correction unreachable.
+        assert any(action[7] == 1 and action[8] == action[9]
+                   for action, _cycles in steps)
+        assert any(action[10] == 1 and cycles >= 8
+                   for action, cycles in steps)
 
 
 def main():
@@ -396,7 +482,9 @@ def main():
     test_extended_capability_sequence_compilation()
     test_synthetic_protocol()
     test_target_value_drives_action()
+    test_target_program_compilation()
     test_semantic_program_encoding()
+    test_fault_site_program()
     print("generic_temporal_planner=ok")
 
 

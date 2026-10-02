@@ -55,9 +55,13 @@ def build_payload(spec, ir, targets):
     """A payload that is mostly valid, with specific invalid items mixed in."""
     compiled = {item.target_index
                 for item in compile_joint_candidates(ir, targets)}
-    gap = next((item for item in targets
-                if item.kind == "cross" and item.index not in compiled), None)
-    assert gap is not None, "the bundled SPI-master spec has no unresolved cross"
+    # Any target the local compiler could not turn into a program will do: the
+    # enrichment exists precisely to cover those.  This used to be restricted
+    # to a cross, because crosses were the only kind compiled at all; now that
+    # single-condition targets are compiled too, the unresolved ones live in
+    # other kinds, and requiring a cross would test nothing.
+    gap = next((item for item in targets if item.index not in compiled), None)
+    assert gap is not None, "the bundled SPI-master spec has no unresolved target"
     address = ir.registers[0].address if ir.registers else 0
     scalar = next((item.name for item in ir.fields if item.role == "scalar"),
                   None)

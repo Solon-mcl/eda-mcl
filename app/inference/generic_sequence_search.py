@@ -67,8 +67,17 @@ class GenericSequenceSearch:
         self._history_cursor = len(history)
         return gained
 
-    def select(self, max_cycles=None, allow_learned=True):
+    def select(self, max_cycles=None, allow_learned=True,
+               blocked_families=(), covered_target_indices=()):
         eligible = self.candidates
+        if covered_target_indices:
+            covered = set(covered_target_indices)
+            eligible = [item for item in eligible
+                        if item.metadata.get("target_index") not in covered]
+        if blocked_families:
+            blocked = set(blocked_families)
+            eligible = [item for item in eligible
+                        if item.metadata.get("family") not in blocked]
         if not allow_learned:
             eligible = [item for item in eligible
                         if not item.metadata.get("learned_trace")]

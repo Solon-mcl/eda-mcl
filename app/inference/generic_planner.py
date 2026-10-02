@@ -157,11 +157,19 @@ class CoverageMacroScheduler:
     def attach_context(self, **context):
         self.active_context.update(context)
 
-    def select(self, covered: int, step: int, max_steps: int,
-               covered_bins=None, target_weights=None, model_scores=None) -> str:
+    def complete(self, covered: int, step: int, covered_bins=None):
+        """Close the preceding program before a target-first decision."""
         self._finish(int(covered), int(step), covered_bins)
+
+    def select(self, covered: int, step: int, max_steps: int,
+               covered_bins=None, target_weights=None, model_scores=None,
+               preferred_macro=None, finish=True) -> str:
+        if finish:
+            self._finish(int(covered), int(step), covered_bins)
         untried = [name for name in MACROS if self.counts[name] == 0]
-        if untried:
+        if preferred_macro in MACROS:
+            chosen = preferred_macro
+        elif untried:
             chosen = untried[0]
         elif self.pending:
             chosen = self.pending.popleft()

@@ -1,0 +1,617 @@
+{
+  "dut_name": "dma_desc_engine_validation",
+  "version": "v1.0",
+  "total_bins": 87,
+  "coverpoints": [
+    {
+      "name": "fsm_state",
+      "type": "basic",
+      "signal": "state",
+      "stage": "FSM",
+      "difficulty": "easy",
+      "bins": [
+        {
+          "name": "idle",
+          "value": 0
+        },
+        {
+          "name": "fetch",
+          "value": 1
+        },
+        {
+          "name": "validate",
+          "value": 2
+        },
+        {
+          "name": "issue",
+          "value": 3
+        },
+        {
+          "name": "wait_ack",
+          "value": 4
+        },
+        {
+          "name": "error",
+          "value": 5
+        },
+        {
+          "name": "done",
+          "value": 6
+        },
+        {
+          "name": "abort",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "name": "step_result",
+      "type": "basic",
+      "signal": "result",
+      "stage": "ENGINE",
+      "difficulty": "medium",
+      "bins": [
+        {
+          "name": "none",
+          "value": 0
+        },
+        {
+          "name": "start",
+          "value": 1
+        },
+        {
+          "name": "abort",
+          "value": 2
+        },
+        {
+          "name": "check_fail",
+          "value": 3
+        },
+        {
+          "name": "check_pass",
+          "value": 4
+        },
+        {
+          "name": "fetch_miss",
+          "value": 5
+        },
+        {
+          "name": "done",
+          "value": 6
+        },
+        {
+          "name": "err_clear",
+          "value": 7
+        },
+        {
+          "name": "word_write",
+          "value": 8
+        },
+        {
+          "name": "burst_beat",
+          "value": 10
+        },
+        {
+          "name": "chain_retire",
+          "value": 11
+        }
+      ]
+    },
+    {
+      "name": "check_fail_class",
+      "type": "basic",
+      "signal": "fail_class",
+      "stage": "VALIDATE",
+      "difficulty": "hard",
+      "bins": [
+        {
+          "name": "none",
+          "value": 0
+        },
+        {
+          "name": "zero_src",
+          "value": 1
+        },
+        {
+          "name": "low_src",
+          "value": 2
+        },
+        {
+          "name": "high_src",
+          "value": 3
+        },
+        {
+          "name": "zero_dst",
+          "value": 4
+        },
+        {
+          "name": "low_dst",
+          "value": 5
+        },
+        {
+          "name": "high_dst",
+          "value": 6
+        },
+        {
+          "name": "zero_len",
+          "value": 7
+        },
+        {
+          "name": "over_len",
+          "value": 8
+        },
+        {
+          "name": "unaligned",
+          "value": 9
+        },
+        {
+          "name": "unsupported_mode",
+          "value": 10
+        },
+        {
+          "name": "unsupported_flag",
+          "value": 11
+        },
+        {
+          "name": "retry_exhausted",
+          "value": 12
+        }
+      ]
+    },
+    {
+      "name": "word_index",
+      "type": "basic",
+      "signal": "word_index",
+      "stage": "FETCH",
+      "difficulty": "easy",
+      "bins": [
+        {
+          "name": "w0",
+          "value": 0
+        },
+        {
+          "name": "w1",
+          "value": 1
+        },
+        {
+          "name": "w2",
+          "value": 2
+        },
+        {
+          "name": "w3",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "name": "descriptor_dirty",
+      "type": "condition",
+      "signal": "dirty",
+      "stage": "DESC",
+      "difficulty": "medium",
+      "bins": [
+        {
+          "name": "clean",
+          "value": 0
+        },
+        {
+          "name": "dirty",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "ack_wait_class",
+      "type": "boundary",
+      "signal": "ack_wait_class",
+      "stage": "HANDSHAKE",
+      "difficulty": "medium",
+      "bins": [
+        {
+          "name": "none",
+          "value": 0
+        },
+        {
+          "name": "counting",
+          "value": 1
+        },
+        {
+          "name": "last_cycle",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "name": "chain_class",
+      "type": "boundary",
+      "signal": "chain_class",
+      "stage": "CHAIN",
+      "difficulty": "medium",
+      "bins": [
+        {
+          "name": "none",
+          "value": 0
+        },
+        {
+          "name": "one",
+          "value": 1
+        },
+        {
+          "name": "mid",
+          "value": 2
+        },
+        {
+          "name": "limit",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "name": "check_count",
+      "type": "boundary",
+      "signal": "checks",
+      "stage": "VALIDATE",
+      "difficulty": "medium",
+      "bins": [
+        {
+          "name": "zero",
+          "value": 0
+        },
+        {
+          "name": "one",
+          "value": 1
+        },
+        {
+          "name": "two",
+          "value": 2
+        },
+        {
+          "name": "three_plus",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "name": "state_x_result",
+      "type": "cross",
+      "signal": "event_state,result",
+      "stage": "ENGINE",
+      "difficulty": "hard",
+      "bins": [
+        {
+          "name": "idle_start",
+          "cross": [
+            0,
+            1
+          ]
+        },
+        {
+          "name": "fetch_word_write",
+          "cross": [
+            1,
+            8
+          ]
+        },
+        {
+          "name": "fetch_miss",
+          "cross": [
+            1,
+            5
+          ]
+        },
+        {
+          "name": "validate_pass",
+          "cross": [
+            2,
+            4
+          ]
+        },
+        {
+          "name": "validate_fail",
+          "cross": [
+            2,
+            3
+          ]
+        },
+        {
+          "name": "issue_beat",
+          "cross": [
+            3,
+            10
+          ]
+        },
+        {
+          "name": "issue_abort",
+          "cross": [
+            3,
+            2
+          ]
+        },
+        {
+          "name": "wait_abort",
+          "cross": [
+            4,
+            2
+          ]
+        },
+        {
+          "name": "wait_retire",
+          "cross": [
+            4,
+            11
+          ]
+        },
+        {
+          "name": "error_clear",
+          "cross": [
+            5,
+            0
+          ]
+        },
+        {
+          "name": "done_clear",
+          "cross": [
+            6,
+            6
+          ]
+        }
+      ]
+    },
+    {
+      "name": "state_x_fail",
+      "type": "cross",
+      "signal": "event_state,fail_class",
+      "stage": "VALIDATE",
+      "difficulty": "hard",
+      "bins": [
+        {
+          "name": "fetch_miss",
+          "cross": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "wait_retry",
+          "cross": [
+            4,
+            12
+          ]
+        },
+        {
+          "name": "validate_low_src",
+          "cross": [
+            2,
+            2
+          ]
+        },
+        {
+          "name": "validate_unaligned",
+          "cross": [
+            2,
+            9
+          ]
+        },
+        {
+          "name": "validate_mode",
+          "cross": [
+            2,
+            10
+          ]
+        },
+        {
+          "name": "validate_flag",
+          "cross": [
+            2,
+            11
+          ]
+        },
+        {
+          "name": "validate_zero_len",
+          "cross": [
+            2,
+            7
+          ]
+        },
+        {
+          "name": "validate_zero_src",
+          "cross": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "validate_high_dst",
+          "cross": [
+            2,
+            6
+          ]
+        }
+      ]
+    },
+    {
+      "name": "chain_x_state",
+      "type": "cross",
+      "signal": "chain_class,state",
+      "stage": "CHAIN",
+      "difficulty": "hard",
+      "bins": [
+        {
+          "name": "none_idle",
+          "cross": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "one_idle",
+          "cross": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "mid_idle",
+          "cross": [
+            2,
+            0
+          ]
+        },
+        {
+          "name": "limit_idle",
+          "cross": [
+            3,
+            0
+          ]
+        },
+        {
+          "name": "none_fetch",
+          "cross": [
+            0,
+            1
+          ]
+        },
+        {
+          "name": "mid_wait",
+          "cross": [
+            2,
+            4
+          ]
+        },
+        {
+          "name": "limit_done",
+          "cross": [
+            3,
+            6
+          ]
+        }
+      ]
+    },
+    {
+      "name": "word_x_dirty",
+      "type": "cross",
+      "signal": "word_index,dirty",
+      "stage": "DESC",
+      "difficulty": "hard",
+      "bins": [
+        {
+          "name": "w0_dirty",
+          "cross": [
+            0,
+            1
+          ]
+        },
+        {
+          "name": "w1_dirty",
+          "cross": [
+            1,
+            1
+          ]
+        },
+        {
+          "name": "w0_clean",
+          "cross": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "seq_start_fetch",
+      "type": "seq_hit",
+      "seq": "seq1",
+      "difficulty": "medium",
+      "bins": [
+        {
+          "name": "hit",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "seq_chain_limit",
+      "type": "seq_hit",
+      "seq": "seq2",
+      "difficulty": "hardest",
+      "bins": [
+        {
+          "name": "hit",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "seq_abort_midburst",
+      "type": "seq_hit",
+      "seq": "seq3",
+      "difficulty": "hard",
+      "bins": [
+        {
+          "name": "hit",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "seq_check_fail_stop",
+      "type": "seq_hit",
+      "seq": "seq4",
+      "difficulty": "hard",
+      "bins": [
+        {
+          "name": "hit",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "seq_burst_stride",
+      "type": "seq_hit",
+      "seq": "seq5",
+      "difficulty": "hard",
+      "bins": [
+        {
+          "name": "hit",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "seq_error_recover",
+      "type": "seq_hit",
+      "seq": "seq6",
+      "difficulty": "hard",
+      "bins": [
+        {
+          "name": "hit",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "seq_done_handshake",
+      "type": "seq_hit",
+      "seq": "seq7",
+      "difficulty": "hard",
+      "bins": [
+        {
+          "name": "hit",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "seq_reset_recover",
+      "type": "seq_hit",
+      "seq": "seq8",
+      "difficulty": "hard",
+      "bins": [
+        {
+          "name": "hit",
+          "value": 1
+        }
+      ]
+    }
+  ]
+}

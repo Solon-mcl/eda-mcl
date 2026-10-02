@@ -1,15 +1,15 @@
-FROM eda-coverage-base:1.0
+FROM eda-coverage-base:1.0 AS compiled
 
 COPY app/inference /app/inference
-COPY entrypoint.sh /entrypoint.sh
-
-# Install a sourceless package in the submitted image, as requested by the
-# competition rules.  NumPy is already present in the official base image.
 RUN python3 -m compileall -q -b /app/inference \
-    && rm -f /app/inference/__init__.py \
-    && chmod 755 /entrypoint.sh
+    && find /app/inference -type f -name '*.py' -delete
+
+# Keep the submitted layers free of our Python source files.
+FROM eda-coverage-base:1.0
+COPY --from=compiled /app/inference /app/inference
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh
 
 ENV PYTHONPATH=/app
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python3", "-c", "from inference import InferenceInterface; print('inference image ready')"]
-

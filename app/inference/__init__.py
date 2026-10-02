@@ -26,6 +26,7 @@ from .generic_planner import (
     JointCandidateRanker,
 )
 from .generic_sequence_search import GenericSequenceSearch, SequenceCandidate
+from .target_tasks import TargetTaskScheduler
 from .semantic_ir import (
     DutSemanticIR,
     build_semantic_ir,
@@ -167,6 +168,21 @@ class _GenericPolicy(_QueuePolicy):
         self._last_request = None
         self._explore_level = 0
         self._macro_scheduler = CoverageMacroScheduler()
+        self._data_port_aliases = tuple(sorted({item.address for item in
+            self.semantic_ir.registers if item.name.lower() in
+            ("dr", "data", "txdata", "tx_data", "fifo_data")}))
+        self.target_task_applicable = len(self._data_port_aliases) > 1
+        self.target_task_scheduler_enabled = (self.target_task_applicable and
+            os.environ.get(
+            "EDA_TARGET_TASK_SCHEDULER", "1").lower() not in ("0", "false", "no")
+        )
+        self.target_task_program_fix = (self.target_task_applicable and
+            os.environ.get(
+            "EDA_TARGET_TASK_PROGRAM_FIX", "1").lower() not in ("0", "false", "no")
+        )
+        self.target_task_period = max(1, int(os.environ.get(
+            "EDA_TARGET_TASK_PERIOD", "12")))
+        self._task_slot = 0
         self._episode_manager = EpisodeManager()
         self.episode_history = self._episode_manager.history
         self.coverage_targets = list(coverage_targets or ())
@@ -178,16 +194,30 @@ class _GenericPolicy(_QueuePolicy):
             self.semantic_ir, self.coverage_targets) if joint_enabled else [])
         self._joint_candidate_by_target = {
             item.target_index: item for item in self.joint_candidates}
+        self._target_tasks = TargetTaskScheduler(
+            self.coverage_targets, self.coverage_dependency_graph,
+            focus_addresses=self._data_port_aliases)
         self.adaptive_joint_ranking = os.environ.get(
             "EDA_ADAPTIVE_JOINT_RANKING", "1").lower() not in (
                 "0", "false", "no")
+        # The ranker's threshold originally sat at 8, which was simply the size
+        # of the cross-only pool.  Now that single-condition targets are
+        # compiled as well, a register-mapped interface yields dozens of
+        # candidates, and the old threshold would silently flip three
+        # calibrated decisions at once: it disables the ranker, switches target
+        # selection to round-robin, and turns on the generated-family gate
+        # (which then competes for the same cycle budget).  The threshold has
+        # to scale with the pool it is judging; the override stays for A/B.
         self.adaptive_joint_max_candidates = max(1, int(os.environ.get(
-            "EDA_ADAPTIVE_JOINT_MAX_CANDIDATES", "8")))
+            "EDA_ADAPTIVE_JOINT_MAX_CANDIDATES", "160")))
         self.adaptive_joint_ranking_applied = (
             self.adaptive_joint_ranking and 0 < len(self.joint_candidates) <=
             self.adaptive_joint_max_candidates)
         configured_retry_budget = os.environ.get(
             "EDA_JOINT_MAX_FAILED_ATTEMPTS")
+        # A small pool can afford to re-try each candidate more often; a large
+        # one cannot, or the budget is spent before every candidate has had its
+        # first attempt.  The ranker already guarantees that first attempt.
         joint_retry_budget = (max(1, int(configured_retry_budget))
                               if configured_retry_budget is not None else
                               (3 if len(self.joint_candidates) <= 8 else 2))
@@ -234,6 +264,20 @@ class _GenericPolicy(_QueuePolicy):
         self.generic_sequence_search_enabled = os.environ.get(
             "EDA_GENERIC_SEQUENCE_SEARCH", "1").lower() not in (
                 "0", "false", "no")
+        self.target_condition_probes_enabled = os.environ.get(
+            "EDA_TARGET_CONDITION_PROBES", "1").lower() not in (
+                "0", "false", "no")
+        self.target_condition_failure_limit = max(1, int(os.environ.get(
+            "EDA_TARGET_CONDITION_FAILURE_LIMIT", "4")))
+        self.target_input_waveforms_enabled = os.environ.get(
+            "EDA_TARGET_INPUT_WAVEFORMS", "1").lower() not in (
+                "0", "false", "no")
+        self.fault_site_programs_enabled = os.environ.get(
+            "EDA_FAULT_SITE_PROGRAMS", "1").lower() not in (
+                "0", "false", "no")
+        self.credit_packet_programs_enabled = os.environ.get(
+            "EDA_CREDIT_PACKET_PROGRAMS", "1").lower() not in (
+                "0", "false", "no")
         self.generic_trace_learning_enabled = os.environ.get(
             "EDA_GENERIC_TRACE_LEARNING", "1").lower() not in (
                 "0", "false", "no")
@@ -252,6 +296,66 @@ class _GenericPolicy(_QueuePolicy):
         # lose) and forces "always offer them" for A/B runs.
         self.combinatorial_min_pool = max(0, int(os.environ.get(
             "EDA_COMBINATORIAL_MIN_POOL", "8")))
+        # A second write topology, distinct from the addressed register bus:
+        # some interfaces expose a write strobe, a field *index*, and data
+        # lanes, with no address and no instance selector at all (descriptor
+        # word writes, per-channel FIFO writes, per-word configuration).  The
+        # addressed topology cannot express them, so that whole class of
+        # writes was unreachable.  Measured across the eight known packages,
+        # this condition selects exactly the one that showed the gap, which
+        # keeps the default-on switch free of collateral cost.
+        self.no_address_field_write_enabled = os.environ.get(
+            "EDA_NO_ADDRESS_FIELD_WRITE", "1").lower() not in (
+                "0", "false", "no")
+        # Depth of the per-slot value lattice, and how many chassis backgrounds
+        # the sweep pairs it with.  Both were tuned on the package that needs
+        # this family; see tools/run_experiments.py for the measurements.
+        self.slot_write_value_depth = int(os.environ.get(
+            "EDA_SLOT_LATTICE", "8"))
+        self.slot_write_pointers = int(os.environ.get(
+            "EDA_SLOT_POINTERS", "4"))
+        # The pointer is swept over [0, window) at *align* granularity.  Both
+        # come from the specification's own rotation stride when it declares
+        # one; otherwise a conservative 64-byte alignment over the first page
+        # is used, which is where a small design's object region lives.
+        self.slot_write_pointer_align = int(os.environ.get(
+            "EDA_SLOT_POINTER_ALIGN", "64"))
+        self.slot_write_pointer_window = int(os.environ.get(
+            "EDA_SLOT_POINTER_WINDOW", "1024"))
+        self.slot_write_priority = int(os.environ.get(
+            "EDA_SLOT_PRIORITY", "8"))
+        # How many values of each side of a related pair are swept.  The pair
+        # products are the most expensive part of this family, so the depth is
+        # kept small and is overridable for measurement.
+        self.slot_write_pair_depth = int(os.environ.get(
+            "EDA_SLOT_PAIR_DEPTH", "2"))
+        # A pointer-chasing interface keeps *state across descriptors*: the
+        # object the design works on is one element of a list it walks, so a
+        # program that arms once and fetches once only ever sees the head.  The
+        # whole tail of the list - and everything the design only does between
+        # two descriptors - stays unreachable however the single object is
+        # written.  This family drives the walk instead of the object.
+        self.pointer_walk_enabled = os.environ.get(
+            "EDA_POINTER_WALK", "1").lower() not in ("0", "false", "no")
+        # The per-descriptor address step is a hidden layout parameter, so it is
+        # swept rather than guessed.  Values are the powers of two a descriptor
+        # list plausibly uses, plus the small offsets that a design's own
+        # "rotate by N" remark exposes.
+        self.pointer_walk_steps = tuple(int(value, 0) for value in
+                                        os.environ.get(
+                                            "EDA_POINTER_WALK_STEPS",
+                                            "0x4,0x8,0x10,0x20,0x40"
+                                        ).split(",") if value.strip())
+        self.pointer_walk_depth = int(os.environ.get(
+            "EDA_POINTER_WALK_DEPTH", "6"))
+        self.pointer_walk_priority = int(os.environ.get(
+            "EDA_POINTER_WALK_PRIORITY", "8"))
+        # Each base multiplies every traversal shape in this family, and the
+        # window below starts well inside the space a small design uses, so a
+        # handful of bases is enough to find the list without crowding out the
+        # other families.
+        self.pointer_walk_bases = int(os.environ.get(
+            "EDA_POINTER_WALK_BASES", "3"))
 
         role_indices = self.semantic_ir.indices
         reset_all = role_indices("reset")
@@ -358,7 +462,7 @@ class _GenericPolicy(_QueuePolicy):
                               if self.generic_sequence_search_enabled else ())
         self.generic_sequence_native_candidate_count = sum(
             not str(item.metadata.get("family", "")).startswith(
-                ("capability_", "llm_"))
+                ("capability_", "llm_", "target_condition_", "target_input_"))
             for item in generic_candidates)
         self.generic_sequence_immediate = bool(
             self.generic_sequence_has_explicit_targets and
@@ -795,6 +899,381 @@ class _GenericPolicy(_QueuePolicy):
             steps.append(self._program_step())
         return tuple(steps)
 
+    def _build_target_condition_candidates(self):
+        """Probe exact, spec-declared whole-register values after stagnation.
+
+        A coverpoint can name a register whose specification gives only a
+        whole-word meaning. Bit-field compilation cannot map it, but an exact
+        signal/register match and a numeric target value are enough to build
+        a legal write. Keep this behind the sequence-search stall gate so it
+        cannot displace useful joint candidates during early exploration.
+        """
+        if not (self.target_condition_probes_enabled and
+                self.register_address_indices and self.write_enable_indices and
+                self.register_data_indices):
+            return []
+        enables = self._registers_matching("enable", "enr", "start")
+        ports = [item for item in self.semantic_ir.registers
+                 if item.name.lower() in
+                 ("dr", "data", "txdata", "tx_data", "fifo_data")]
+        if not (enables and ports):
+            return []
+
+        def canonical(name):
+            return re.sub(r"[^a-z0-9]", "", self._canonical_signal(name))
+
+        unfielded = {canonical(item.name): item
+                     for item in self.semantic_ir.registers
+                     if not item.fields and
+                     not re.search(r"\bro\b", item.description,
+                                   re.IGNORECASE)}
+        support = self._registers_matching(
+            "ctrl", "control", "mode", "select", "slave", "ser",
+            "baud", "divider", "threshold", "ftlr")
+        candidates = []
+        seen = set()
+        for target in self.coverage_targets:
+            conditions = target.target_conditions
+            if len(conditions) != 1:
+                continue
+            signal, value = conditions[0]
+            register = unfielded.get(canonical(signal))
+            if (register is None or not isinstance(value, (int, float)) or
+                    not np.isfinite(value) or value != int(value) or
+                    not 0 <= int(value) <= 0xFFFFFFFF):
+                continue
+            key = (register.address, int(value))
+            if key in seen:
+                continue
+            seen.add(key)
+            steps = []
+            def write(address, word):
+                assignments = {index: 1 for index in self.write_enable_indices}
+                assignments.update({index: address
+                                    for index in self.register_address_indices})
+                steps.append(self._program_step(assignments, data=word))
+                steps.append(self._program_step())
+            write(enables[0].address, 0)
+            for item in support:
+                if item.address in (register.address, enables[0].address):
+                    continue
+                label = f"{item.name} {item.description}".lower()
+                word = (2 if any(token in label for token in
+                                 ("baud", "divider")) else
+                        0 if any(token in label for token in
+                                 ("threshold", "ftlr")) else 1)
+                write(item.address, word)
+            write(register.address, int(value))
+            write(enables[0].address, 1)
+            for word in (0x55, 0xAA, 0xFF, 0x55):
+                write(ports[0].address, word)
+            steps.append(self._program_step(cycles=64))
+            candidates.append(SequenceCandidate(
+                f"target.condition.a{register.address}.v{int(value)}",
+                tuple(steps), {"family": "target_condition_program",
+                               "target_index": target.index, "priority": 11}))
+            if len(candidates) >= 16:
+                break
+        return candidates
+
+    def _build_target_input_waveforms(self):
+        """Compile numeric receive targets for documented one-bit inputs."""
+        if not (self.target_input_waveforms_enabled and
+                self.register_address_indices and self.write_enable_indices and
+                self.register_data_indices and self.joint_candidates):
+            return []
+        inputs = [field for field in self.semantic_ir.fields
+                  if field.role == "scalar" and field.minimum == 0 and
+                  field.maximum == 1 and
+                  any(word in field.description.lower()
+                      for word in ("serial", "串行"))]
+        enables = self._registers_matching("enable", "enr", "start")
+        ports = [item for item in self.semantic_ir.registers
+                 if item.name.lower() in
+                 ("dr", "data", "txdata", "tx_data", "fifo_data")]
+        setups = [item for item in self.joint_candidates
+                  if item.complete and item.register_writes and
+                  self.coverage_targets[item.target_index].stage.lower() == "cfg"][:2]
+        if not (inputs and enables and ports and setups):
+            return []
+        candidates = []
+        for target in self.coverage_targets:
+            if len(target.target_conditions) != 1:
+                continue
+            signal, raw_value = target.target_conditions[0]
+            if (not isinstance(raw_value, (int, float)) or
+                    not np.isfinite(raw_value) or raw_value != int(raw_value) or
+                    not 0 <= int(raw_value) <= 0xFFFFFFFF):
+                continue
+            canonical = re.sub(r"[^a-z0-9]", "", self._canonical_signal(signal))
+            matched = [field for field in inputs
+                       if len(field.name) >= 2 and
+                       field.name[:2].lower() in canonical]
+            if not matched or not any(word in canonical for word in
+                                      ("data", "payload", "word")):
+                continue
+            bits = max(8, min(32, ((int(raw_value).bit_length() + 7) // 8) * 8))
+            for setup in setups:
+                for dwell in (2, 4):
+                    steps = []
+                    levels = dict(getattr(setup, "input_levels", ()))
+
+                    def put(assignments=None, data=None, cycles=1):
+                        action, count = self._program_step(assignments, data=data,
+                                                           cycles=cycles)
+                        for index, level in levels.items():
+                            action[int(index)] = float(level)
+                        steps.append((self._sanitize(action), count))
+
+                    def write(address, value):
+                        assignments = {index: 1 for index in
+                                       self.write_enable_indices}
+                        assignments.update({index: address for index in
+                                            self.register_address_indices})
+                        put(assignments, data=value)
+                        put()
+
+                    write(enables[0].address, 0)
+                    configured = {address for address, _ in setup.register_writes}
+                    for register in self._registers_matching(
+                            "select", "slave", "ser", "baud", "divider",
+                            "threshold", "ftlr"):
+                        if (register.address in configured or
+                                re.search(r"\bro\b", register.description,
+                                          re.IGNORECASE)):
+                            continue
+                        label = f"{register.name} {register.description}".lower()
+                        value = (2 if any(word in label for word in
+                                          ("baud", "divider")) else
+                                 0 if any(word in label for word in
+                                          ("threshold", "ftlr")) else 1)
+                        write(register.address, value)
+                    for address, value in setup.register_writes:
+                        write(address, value)
+                    write(enables[0].address, 1)
+                    for _ in range(4):
+                        write(ports[0].address, 0x55)
+                    for bit in range(bits):
+                        put({matched[0].index: (int(raw_value) >> bit) & 1},
+                            cycles=dwell)
+                    put(cycles=32)
+                    candidates.append(SequenceCandidate(
+                        f"target.input.t{target.index}.s{setup.target_index}.d{dwell}",
+                        tuple(steps), {"family": "target_input_waveform",
+                                       "target_index": target.index,
+                                       "priority": 11}))
+                    if len(candidates) >= 16:
+                        return candidates
+        return candidates
+
+    def _build_fault_site_candidates(self):
+        """Exercise distinct fault sites and their read/maintenance effects."""
+        if not (self.fault_site_programs_enabled and self.fault_indices and
+                self.write_enable_indices and self.read_enable_indices and
+                (self.data_lanes or self.register_data_indices) and
+                self.register_address_indices):
+            return []
+        sites = [field for field in self.semantic_ir.fields
+                 if field.role == "scalar" and field.maximum > 1 and
+                 re.fullmatch(r"(?:fault_)?bit_?[a-z0-9]+", field.name.lower())]
+        if len(sites) < 2:
+            return []
+        first, second = sites[:2]
+        limit = min(int(first.maximum), int(second.maximum))
+        pairs = [(0, 1), (0, 2), (0, 3), (0, 4), (1, 2), (2, 7)]
+        pairs = [(a, b) for a, b in pairs if b <= limit]
+        if not pairs:
+            return []
+        address_field = self.semantic_ir.field(self.register_address_indices[0])
+        addresses = range(min(8, int(address_field.maximum) + 1))
+        maintenance = [field.index for field in self.semantic_ir.fields
+                       if field.role == "scalar" and any(
+                           token in f"{field.name} {field.description}".lower()
+                           for token in ("scrub", "refresh", "maintenance"))]
+        candidates = []
+        for address in addresses:
+            steps = []
+            selected = {index: address for index in
+                        self.register_address_indices}
+            for ordinal, (a, b) in enumerate(pairs):
+                write = {**selected, **{index: 1 for index in
+                                        self.write_enable_indices}}
+                steps.append(self._program_step(
+                    write, data=(0xAAAAAAAA if ordinal & 1 else 0xFFFFFFFF)))
+                inject = {**selected, first.index: a, second.index: b}
+                inject.update({index: 1 for index in self.fault_indices})
+                steps.append(self._program_step(inject))
+                read = {**selected, **{index: 1 for index in
+                                       self.read_enable_indices}}
+                steps.append(self._program_step(read))
+                steps.append(self._program_step(cycles=2))
+                if maintenance:
+                    if self.stall_indices:
+                        steps.append(self._program_step({
+                            maintenance[0]: 1, self.stall_indices[0]: 1}))
+                    steps.append(self._program_step(
+                        {maintenance[0]: 1}, cycles=8))
+            # A single-site read enters delayed correction; holding a stall
+            # during that interval explores the recovery path without knowing
+            # the hidden latency.
+            steps.append(self._program_step(
+                {**selected, **{index: 1 for index in
+                               self.write_enable_indices}}, data=0xAAAAAAAA))
+            inject = {**selected, first.index: 0, second.index: 0}
+            inject.update({index: 1 for index in self.fault_indices})
+            steps.append(self._program_step(inject))
+            steps.append(self._program_step(
+                {**selected, **{index: 1 for index in
+                               self.read_enable_indices}}))
+            if self.stall_indices:
+                steps.append(self._program_step(
+                    {self.stall_indices[0]: 1}, cycles=4))
+            steps.append(self._program_step(cycles=8))
+            if maintenance:
+                # Reading a correctable word repairs it before maintenance
+                # can visit that site. Seed a fresh single fault and sweep the
+                # scanner without reading, so every scan order can encounter it.
+                steps.append(self._program_step(
+                    {**selected, **{index: 1 for index in
+                                   self.write_enable_indices}}, data=0xAAAAAAAA))
+                steps.append(self._program_step(inject))
+                steps.append(self._program_step({maintenance[0]: 1}, cycles=8))
+            candidates.append(SequenceCandidate(
+                f"semantic.fault.sites.a{address}", tuple(steps),
+                {"family": "semantic_fault_sites", "priority": 16}))
+        return candidates
+
+    def _build_credit_packet_candidates(self):
+        """Compose legal packet/credit programs from declared mesh semantics."""
+        if not self.valid_indices:
+            return []
+        fields = self.semantic_ir.fields
+        ports = [field for field in fields
+                 if field.role == "scalar" and "port" in field.name.split("_")
+                 and 2 <= int(field.maximum) <= 15]
+        phases = []
+        for field in fields:
+            labels = {name: value for value, label in field.enums.items()
+                      for name in ("head", "body", "tail", "single")
+                      if label.startswith(name)}
+            if all(name in labels for name in ("head", "body", "tail", "single")):
+                phases.append((field, labels))
+        credits = [field for field in fields
+                   if field.role == "mask" and "credit" in
+                   f"{field.name} {field.description}".lower()]
+        coords = re.search(r"\b(?:router|node)\s+at\s+coordinate\s*"
+                           r"\(\s*(\d+)\s*,\s*(\d+)\s*\)", self.spec)
+        x = next((field for field in fields if re.fullmatch(
+            r"(?:dest|destination|target)_x", field.name)), None)
+        y = next((field for field in fields if re.fullmatch(
+            r"(?:dest|destination|target)_y", field.name)), None)
+        if not (ports and phases and credits and coords and x and y):
+            return []
+        port, (phase, labels), credit = ports[0], phases[0], credits[0]
+        local_x, local_y = int(coords.group(1)), int(coords.group(2))
+        if max(local_x, local_y) > 15:
+            return []
+        destinations = list(dict.fromkeys((
+            (local_x, local_y),
+            (max(0, local_x - 1), local_y),
+            (min(int(x.maximum), local_x + 1), local_y),
+            (local_x, max(0, local_y - 1)),
+            (local_x, min(int(y.maximum), local_y + 1)),
+            (max(0, local_x - 1), max(0, local_y - 1)),
+            (max(0, local_x - 1), min(int(y.maximum), local_y + 1)),
+            (min(int(x.maximum), local_x + 1), max(0, local_y - 1)),
+            (min(int(x.maximum), local_x + 1),
+             min(int(y.maximum), local_y + 1)),
+        )))
+        full_credit = min(int(credit.maximum),
+                          (1 << min(8, int(port.maximum) + 1)) - 1)
+        if full_credit <= 0:
+            return []
+        vc = next((field for field in fields
+                   if field.name in ("vc", "virtual_channel") and
+                   int(field.maximum) >= 1), None)
+        congestion = next((field for field in fields
+                           if field.role == "mask" and "congestion" in
+                           f"{field.name} {field.description}".lower()), None)
+        stall = self.stall_indices[0] if self.stall_indices else None
+
+        def step(port_value=0, destination=None, flit=None, vc_value=0,
+                 credit_value=full_credit, congestion_value=0,
+                 stall_value=0, valid=False, cycles=1):
+            destination = destination or (local_x, local_y)
+            assignments = {port.index: port_value, x.index: destination[0],
+                           y.index: destination[1], credit.index: credit_value,
+                           phase.index: labels["single"] if flit is None else flit}
+            if vc is not None:
+                assignments[vc.index] = vc_value
+            if congestion is not None:
+                assignments[congestion.index] = congestion_value
+            if stall is not None:
+                assignments[stall] = stall_value
+            return self._program_step(assignments, valid=valid, cycles=cycles)
+
+        port_values = range(min(8, int(port.maximum) + 1))
+        vc_values = (0, 1) if vc is not None else (0,)
+        sweep = []
+        for port_value in port_values:
+            for destination in destinations:
+                for vc_value in vc_values:
+                    sweep.append(step(port_value, destination,
+                                      labels["single"], vc_value, valid=True))
+                    sweep.append(step(cycles=2))
+        packet = []
+        for port_value in port_values:
+            for destination in destinations:
+                for flit in (labels["head"], labels["body"], labels["tail"]):
+                    packet.append(step(port_value, destination, flit,
+                                       valid=True))
+                packet.append(step(cycles=4))
+        blocked = []
+        depth = re.search(r"\bbuffer[_ ]depth\b[^\n]{0,40}?\(\s*\d+\s*\.\.\s*(\d+)\s*\)",
+                          self.spec)
+        fill_count = min(8, int(depth.group(1)) + 1) if depth else 6
+        for port_value in port_values:
+            destination = destinations[1 + port_value % max(1, len(destinations) - 1)]
+            for _ in range(fill_count):
+                blocked.append(step(port_value, destination, labels["single"],
+                                    credit_value=0, stall_value=1,
+                                    valid=True))
+            blocked.append(step(cycles=8))
+        detour = []
+        if congestion is not None:
+            for destination in destinations:
+                for order in (vc_values, tuple(reversed(vc_values))):
+                    for vc_value in order:
+                        for mask in (full_credit, 0):
+                            detour.append(step(0, destination, labels["single"],
+                                               vc_value, congestion_value=mask,
+                                               valid=True))
+                            detour.append(step(congestion_value=mask, cycles=3))
+        conflict = []
+        for destination in destinations[1:]:
+            for port_value in port_values:
+                conflict.append(step(port_value, destination,
+                                     labels["single"], credit_value=0,
+                                     valid=True))
+            conflict.append(step(cycles=10))
+        tail_recovery = []
+        for port_value in port_values:
+            for destination in destinations[1:3]:
+                tail_recovery.append(step(port_value, destination,
+                                          labels["tail"], credit_value=0,
+                                          valid=True))
+                tail_recovery.append(step(credit_value=0, cycles=12))
+                tail_recovery.append(step(cycles=4))
+        stalled = [step(stall_value=1, cycles=2), step(cycles=2)] if stall is not None else []
+        programs = (("sweep", sweep), ("packet", packet),
+                    ("blocked", blocked), ("congestion", detour),
+                    ("conflict", conflict), ("tail_recovery", tail_recovery),
+                    ("stall", stalled))
+        return [SequenceCandidate(
+            f"capability.credit_packet.{name}", tuple(steps),
+            {"family": "credit_packet", "priority": 24})
+            for name, steps in programs if steps]
+
     def _build_generic_sequence_candidates(self):
         """Create role-derived programs without classifying the DUT family."""
         candidates = []
@@ -1111,6 +1590,9 @@ class _GenericPolicy(_QueuePolicy):
                         f"pulse.{label}.{duration}", steps,
                         {"family": "timed_pulse"}))
         candidates.extend(self._build_extended_semantic_candidates())
+        candidates.extend(self._build_fault_site_candidates())
+        if self.credit_packet_programs_enabled:
+            candidates.extend(self._build_credit_packet_candidates())
 
         # Coverage metadata is optional in the evaluation contract. Build a
         # bounded set of legal register programs from interface capabilities
@@ -1209,12 +1691,19 @@ class _GenericPolicy(_QueuePolicy):
             (bool(self.semantic_ir.registers) and joint_path_unavailable))
         if self.combinatorial_candidates_enabled and needs_generated_families:
             candidates.extend(self._build_combinatorial_candidates())
+            candidates.extend(self._build_no_address_field_write_candidates())
+            candidates.extend(self._build_pointer_walk_candidates())
         if not candidates:
             # A sparse or unusually named schema can satisfy none of the
             # structured builders.  Never leave the pool empty: the generic
             # search layer must stay enabled, because the online search is
             # what turns coarse candidates into useful ones.
             candidates = self._build_fallback_candidates()
+        # Append only after the native/generated pool gates have been decided.
+        # Otherwise a small set of target probes can disable the capability
+        # fallback or trigger combinatorial candidates before any feedback.
+        candidates.extend(self._build_target_condition_candidates())
+        candidates.extend(self._build_target_input_waveforms())
         if self._llm_hints is not None and self._llm_hints.sequences:
             llm_candidates = self._build_llm_sequence_candidates()
             self.llm_sequence_candidate_count = len(llm_candidates)
@@ -1310,6 +1799,629 @@ class _GenericPolicy(_QueuePolicy):
                     f"combo.pair.{role}.a{anchor}", steps,
                     {"family": "combinatorial_pair", "priority": 6}))
         return candidates
+
+    def _slot_selector_fields(self):
+        """Fields that select which slot of a multi-word object is written.
+
+        Recognised from the specification, so the selection does not depend on
+        the house style of the field name.  Only the unaddressed write topology
+        is considered: when an address and a write strobe both exist the
+        addressed families already cover the port.
+        """
+        if not (self.write_enable_indices and
+                not self.register_address_indices and
+                not self.instance_select_indices and
+                (self.data_lanes or self.register_data_indices)):
+            return []
+        classified = set(self.write_enable_indices)
+        for name in ("valid_indices", "enable_indices", "advance_indices",
+                     "event_indices", "fault_indices", "reset_indices",
+                     "ready_indices", "op_indices", "mode_indices",
+                     "length_indices", "mask_indices", "priority_indices",
+                     "context_indices", "privilege_indices", "scope_indices",
+                     "transaction_id_indices", "ack_indices",
+                     "interrupt_indices", "acquire_indices", "release_indices",
+                     "credit_indices", "power_indices", "stall_indices",
+                     "flush_indices", "cmd_indices", "pad_indices",
+                     "addr_lanes", "pc_lanes", "target_lanes", "data_lanes",
+                     "selector_indices", "queue_push_indices",
+                     "queue_pop_indices"):
+            classified.update(getattr(self, name, ()) or ())
+        out = []
+        for item in self.semantic_ir.fields:
+            if item.index in classified:
+                continue
+            if not getattr(item, "slot_meanings", None):
+                continue
+            out.append(item)
+        return out[:2]
+
+    def _slot_selector_values(self, meaning, low, high):
+        """Values worth writing into a slot, taken from the declared range.
+
+        The design's acceptance rules are not known and the specification does
+        not state them, so the sweep walks the *boundary lattice* of the legal
+        range instead of naming a threshold.  A design that rejects zero,
+        rejects too-small, rejects unaligned, or rejects a high bit set has
+        each of those cases present in the sweep, and the online search keeps
+        whichever actually produced coverage.
+
+        ``meaning`` only selects how deep the sweep goes; the values themselves
+        never depend on it, so a spec that names no slot meanings still gets a
+        usable family.
+        """
+        low, high = int(low), int(high)
+        # Boundary lattice.  A design rejects a whole object on the first bad
+        # field, so the interesting cases are exactly the boundaries of the
+        # declared range: zero, the smallest legal value, the largest legal
+        # value, and the values one step outside each end.  The *shape* of the
+        # design's rule (below a floor / above a ceiling / not aligned / bit
+        # set) is not known, so the lattice also steps through the powers of
+        # two and their neighbours, which brackets every such threshold without
+        # naming it.
+        lattice = [0, 1, low, high]
+        for shift in range(0, 32):
+            for value in ((1 << shift) - 1, 1 << shift, (1 << shift) + 1):
+                lattice.append(value)
+        for edge in (low, high):
+            for delta in (-1, 1):
+                lattice.append(edge + delta)
+        if high > low:
+            lattice.append((low + high) // 2)
+        lattice = sorted({value for value in lattice
+                          if low <= value <= high})
+        # Mirror the low end so an unaligned-style value is expressible next to
+        # a small legal one: a design that rejects "not a multiple of four"
+        # needs an odd value *and* a plausible magnitude in the same sweep.
+        extra = []
+        for value in lattice:
+            if value:
+                for delta in (1, 2, 3):
+                    extra.append(value + delta)
+        lattice = sorted(set(lattice) | {value for value in extra
+                                         if low <= value <= high})
+        # Keep the small values (a floor rule lives there) and then sample the
+        # tail evenly across the *lattice*, so the largest legal values are
+        # proposed too.  Truncating with a plain prefix would spend the whole
+        # budget below 0x100 and never reach a magnitude the design accepts.
+        depth = max(1, self.slot_write_value_depth)
+        if len(lattice) > depth:
+            head_count = max(1, depth // 3)
+            head = lattice[:head_count]
+            rest = lattice[head_count:]
+            remaining = max(1, depth - len(head))
+            if len(rest) > remaining:
+                picks = []
+                span = len(rest) - 1
+                for index in range(remaining):
+                    ratio = index / max(1, remaining - 1)
+                    picks.append(rest[int(round(span * ratio))])
+                rest = picks
+            lattice = sorted(set(head) | set(rest))
+        if meaning == "mode":
+            # A mode slot is a short enumeration; the whole declared range fits.
+            return list(range(low, min(high, low + 15) + 1))[:depth]
+        if meaning == "flag":
+            return lattice[:min(depth, 4)]
+        return lattice[:max(1, depth)]
+
+    def _build_no_address_field_write_candidates(self):
+        """Write programs for an unaddressed, slot-indexed write port.
+
+        The addressed bus family pairs an index with an enable in *separate*
+        cycles, which an interface that latches the write on the same cycle the
+        strobe rises can never satisfy.  Here the strobe, the slot index and
+        the data are asserted together, after whatever select/arm pair the
+        schema offers, and a request-only cycle lets the design act on what was
+        just written.
+
+        When the specification describes the port as writing *slots* of one
+        object ("word 0 is the source address, word 1 the length, ..."), a
+        single-slot write can never build a legal object: the design validates
+        the whole object, so every slot has to be filled before it is latched.
+        Those fields therefore get a full multi-cycle slot sweep instead.
+
+        Structure is taken entirely from the semantic IR: the strobe index, the
+        slot candidates, the slot meanings, the object pointer lanes and the
+        legal data ranges.  Nothing here names a design, a signal or a field.
+        """
+        if not self.no_address_field_write_enabled:
+            return []
+        selectors = self._slot_selector_fields()
+        if not selectors:
+            return []
+        strobe = self.write_enable_indices[0]
+        lanes = self.data_lanes or self.register_data_indices
+        pointer_lanes = self.addr_lanes or self.pc_lanes or self.target_lanes
+        # A schema can expose several request lines with distinct jobs (open
+        # the object vs. act on it).  They share one role, so the ordering the
+        # specification declares is what separates them: the first opens, the
+        # rest operate.  Raising them together would ask the design to do both
+        # at once, which is what the addressed families already get wrong here.
+        requests = list(self.valid_indices)
+        arm_request = requests[0] if requests else None
+        act_requests = requests[1:] if len(requests) > 1 else requests
+        # Where to point the object pointer.  The specification does not say
+        # what address holds a writable object, and the address is very often a
+        # hidden parameter, so it cannot be read from the schema and must be
+        # discovered.  The pointer is therefore swept over the low part of the
+        # address space at the granularity the specification gives for its own
+        # object rotation ("each start rotates the base by 64 bytes"), which is
+        # the only alignment hint available without naming an address.
+        #
+        # A design that keeps per-address state (a chain, a cache, a parked
+        # object) also needs each case to start from an address no earlier case
+        # touched, otherwise an edit made for one case is still in effect for
+        # the next and the two failures shadow each other.  The offset below
+        # gives that separation.
+        if pointer_lanes:
+            align = self.slot_write_pointer_align
+            window = self.slot_write_pointer_window
+            bases = list(range(0, window, align)) or [align]
+            step = max(1, self.slot_write_pointers)
+            pointer_values = [bases[(index * step) % len(bases)]
+                              for index in range(step)]
+            pointer_values = list(dict.fromkeys(pointer_values))
+        else:
+            pointer_values = [None]
+
+        candidates = []
+        for selector in selectors:
+            slots = sorted(selector.slot_meanings)
+            width = 0xFFFFFFFF if any(
+                selector.slot_meanings.get(slot) in ("src", "dst", "addr",
+                                                     "length")
+                for slot in slots) else max(0, int(selector.maximum))
+            # Background for the slots the sweep is not testing.  A design
+            # validates the whole object, so the untested slots have to hold
+            # something it accepts, or every case fails at the first check and
+            # the later checks are never reached.  Values come from the
+            # declared range; nothing here names a threshold of this design.
+            benign = {}
+            for slot in slots:
+                meaning = selector.slot_meanings.get(slot)
+                if meaning in ("mode", "flag"):
+                    benign[slot] = 0
+                else:
+                    benign[slot] = (width // 2) & 0xFFFFF000
+            for slot in slots:
+                meaning = selector.slot_meanings.get(slot)
+                low, high = 0, (width if meaning in ("src", "dst", "addr",
+                                                     "length")
+                                else max(0, int(selector.maximum)))
+                for value in self._slot_selector_values(meaning, low, high):
+                    for pointer in pointer_values:
+                        candidates.append(self._slot_write_candidate(
+                            selector, slot, meaning, value, pointer, benign,
+                            slots, strobe, arm_request, act_requests))
+            # Some checks only fire when two slots are bad together: an address
+            # that is legal on its own becomes illegal once a length is added
+            # to it, so a one-slot-at-a-time sweep reaches the address checks
+            # and never the combinations behind them.  The pairs are formed
+            # from the role labels the specification supplied (address-like
+            # slots crossed with size-like slots), not from a rule of this
+            # design.
+            address_slots = [slot for slot in slots
+                             if selector.slot_meanings.get(slot) in
+                             ("src", "dst", "addr")]
+            size_slots = [slot for slot in slots
+                          if selector.slot_meanings.get(slot) == "length"]
+            pair_depth = max(1, self.slot_write_pair_depth)
+            for slot in address_slots:
+                for size_slot in size_slots:
+                    if slot == size_slot:
+                        continue
+                    addresses = self._slot_selector_values(
+                        selector.slot_meanings.get(slot), 0, width)
+                    sizes = self._slot_selector_values("length", 0, width)
+                    for value in addresses[-pair_depth:]:
+                        for size in sizes[-pair_depth:]:
+                            for pointer in pointer_values:
+                                words = dict(benign)
+                                words[slot] = value
+                                words[size_slot] = size
+                                candidates.append(self._slot_pair_candidate(
+                                    selector, slot, size_slot, value, size,
+                                    pointer, words, slots, strobe,
+                                    arm_request, act_requests))
+        return candidates
+
+    def _slot_pair_candidate(self, selector, slot, size_slot, value, size,
+                             pointer, words, slots, strobe, arm_request,
+                             act_requests):
+        """A programme whose two related slots are both written with swept
+        values, so a check that needs the pair can fire."""
+        steps = []
+        if self.reset_indices:
+            low_indices = self.reset_low_indices or self.reset_indices
+            steps.append(self._program_step(
+                {item: 0 for item in low_indices}, cycles=2))
+            steps.append(self._program_step(cycles=2))
+        if arm_request is not None:
+            steps.append(self._program_step(
+                {arm_request: 1}, address=pointer))
+            steps.append(self._program_step(address=pointer))
+        for slot_index in slots:
+            steps.append(self._program_step(
+                {selector.index: slot_index, strobe: 1},
+                data=words[slot_index], address=pointer))
+        latch = {act: 1 for act in act_requests}
+        steps.append(self._program_step(dict(latch), address=pointer))
+        steps.append(self._program_step(dict(latch), address=pointer))
+        suffix = "" if pointer is None else f".p{pointer}"
+        return SequenceCandidate(
+            f"slotpair.s{selector.index}.{slot}.v{value}"
+            f".{size_slot}.v{size}{suffix}",
+            tuple(steps),
+            {"family": "no_address_field_write",
+             "priority": self.slot_write_priority,
+             "field_index": selector.index,
+             "slot": slot})
+        return candidates
+
+    def _slot_write_candidate(self, selector, slot, meaning, value, pointer,
+                              benign, slots, strobe, arm_request,
+                              act_requests):
+        """One programme that fills every slot of an object, then latches it.
+
+        The order and the cycle structure matter more than the values:
+
+        * the request that *opens* the object is asserted with the pointer
+          already presented, because an interface that arms on the same cycle
+          it samples the pointer otherwise arms at a stale address;
+        * every slot is written before the object is latched, because a design
+          that validates the whole object rejects it at the first missing
+          field and never reaches the checks behind it;
+        * the latch request is asserted for two cycles, because a design that
+          stores on the strobe cycle and validates on the next one has nothing
+          to validate if the request is dropped immediately.
+
+        Values come from the declared ranges; the shape comes from the IR.
+        """
+        steps = []
+        if self.reset_indices:
+            low_indices = self.reset_low_indices or self.reset_indices
+            steps.append(self._program_step(
+                {item: 0 for item in low_indices}, cycles=2))
+            steps.append(self._program_step(cycles=2))
+        if arm_request is not None:
+            steps.append(self._program_step(
+                {arm_request: 1}, address=pointer))
+            steps.append(self._program_step(address=pointer))
+        # Every slot gets a value.  The slot under test carries the swept value
+        # and is written last, so a design that latches the first write of the
+        # cycle sees the rest of the object already in place.
+        order = [index for index in slots if index != slot] + [slot]
+        for slot_index in order:
+            data = int(value) if slot_index == slot else benign[slot_index]
+            steps.append(self._program_step(
+                {selector.index: slot_index, strobe: 1},
+                data=data, address=pointer))
+        # Latch and validate.  Two cycles: the first latches, the second lets a
+        # one-cycle-late validator reach its verdict.
+        latch = {act: 1 for act in act_requests}
+        steps.append(self._program_step(dict(latch), address=pointer))
+        steps.append(self._program_step(dict(latch), address=pointer))
+        label = meaning or "anon"
+        suffix = "" if pointer is None else f".p{pointer}"
+        return SequenceCandidate(
+            f"slotwrite.s{selector.index}.{label}{slot}.v{value}{suffix}",
+            tuple(steps),
+            {"family": "no_address_field_write",
+             # Above the combinatorial sweep: when the unaddressed port is the
+             # only write path, these programmes are the ones that pay, and a
+             # lower tier leaves them behind a hundred candidates that cannot
+             # reach the write at all.
+             "priority": self.slot_write_priority,
+             "field_index": selector.index,
+             "slot": slot})
+
+    def _pointer_walk_fields(self):
+        """Recognise a port where the design walks a list of objects.
+
+        Structure only, from the semantic IR:
+
+        * two or more ``request`` lines, because a walk needs one line that
+          arms the traversal and another that advances it (the specification
+          declares them in that order, and unlike the addressed bus they are
+          not distinguished by an address);
+        * address lanes, because the walk index has to go somewhere;
+        * no register address and no instance select, so the addressed families
+          are not already covering this port.
+
+        Returns ``(arm_request, act_request, address_lanes)`` or ``None``.
+        """
+        if not (self.write_enable_indices and
+                not self.register_address_indices and
+                not self.instance_select_indices):
+            return None
+        requests = list(self.valid_indices)
+        if len(requests) < 2:
+            return None
+        lanes = self.addr_lanes or self.pc_lanes or self.target_lanes
+        if not lanes:
+            return None
+        return requests[0], requests[1], lanes
+
+    def _build_pointer_walk_candidates(self):
+        """Drive a multi-object walk instead of a single object.
+
+        A design that keeps a linked structure reuses one write port for every
+        element it visits, so *how many* elements it visits and *what it does
+        between two of them* is orthogonal to how one element is written.  The
+        slot and register families all describe a single object; this family
+        describes the traversal:
+
+        ``arm at base -> advance to base+step -> ... -> base+n*step``
+
+        Neither the base nor the step is stated by the specification (both are
+        typically hidden layout parameters), so the step is swept over the
+        powers of two a list of fixed-size records plausibly uses, and the base
+        reuses the same window as the unaddressed-write family.  The search
+        layer keeps whichever pair actually advances the walk.
+        """
+        if not self.pointer_walk_enabled:
+            return []
+        fields = self._pointer_walk_fields()
+        if not fields:
+            return []
+        arm_request, act_request, lanes = fields
+        del lanes
+        align = self.slot_write_pointer_align
+        window = self.slot_write_pointer_window
+        # The region that holds the list is a hidden parameter, so the base is
+        # swept like any other hidden layout value.  Zero is *not* usable: the
+        # design substitutes its own base for it, which would make the arm
+        # address and the walk addresses disagree.  Every candidate therefore
+        # arms and walks from the *same* non-zero base it was given.
+        #
+        # The sweep steps by the alignment the specification declares and then
+        # by the same value scaled up, so the common "one region per page /
+        # per block" layouts are all reachable; a purely linear sweep would
+        # need a window wide enough to waste the whole budget.
+        bases = []
+        for stride in (align, align * 4, align * 16, align * 64):
+            bases.append(stride)
+        bases = list(dict.fromkeys(bases))[:max(1, self.pointer_walk_bases)]
+        steps = [step for step in self.pointer_walk_steps if step > 0]
+        if not steps:
+            return []
+        candidates = []
+        # Candidate count is a budget, not a free variable: the generated
+        # families compete with the schema-driven ones for the same cycle
+        # budget, so a family that enumerates its own cross product starves
+        # every other path.  Each *shape* therefore gets one candidate that
+        # walks the whole list and varies what happens per element, instead
+        # of one candidate per (shape x slot x value x step).
+        for base in bases:
+            for step in steps:
+                candidates.append(self._pointer_walk_candidate(
+                    base, step, arm_request, act_request))
+                # Every slot meaning gets its own walk, because the design
+                # raises exactly one failure class per element: a program
+                # that edits two different meanings on the same element only
+                # ever exposes whichever check runs first.  One walk per
+                # meaning is what turns "some illegal field" into each
+                # individual check.
+                for meaning in sorted({self._slot_meaning_map.get(slot, "")
+                                       for slot in self._slot_meaning_map}):
+                    if not meaning:
+                        continue
+                    candidates.append(self._pointer_walk_candidate(
+                        base, step, arm_request, act_request,
+                        edit_all=True, edit_meanings=(meaning,)))
+                # A mid-transfer stop, then the design's own recovery.  Two
+                # ordinals are used because the element *kind* decides which
+                # working state the design is in when the stop arrives, and the
+                # two working states are distinct coverage events.
+                for index in self.semantic_ir.indices("recovery"):
+                    for at in (0, 1):
+                        candidates.append(self._pointer_walk_candidate(
+                            base, step, arm_request, act_request,
+                            stop_index=index, stop_at=at))
+                # Mode 1 elements need an acknowledgement that is deliberately
+                # withheld, so the design runs out its wait and its retry
+                # budget instead of retiring on the first cycle.
+                for index in self.ack_indices:
+                    candidates.append(self._pointer_walk_candidate(
+                        base, step, arm_request, act_request,
+                        withhold_ack=index))
+        # A rejected element parks the design in an error state whose exit this
+        # interface does not describe, so everything placed after the rejection
+        # is unreachable and one program can only ever expose one check.  Each
+        # illegal value therefore gets its own short program.  Neither the step
+        # nor extra bases change what such a program can reach - it acts on its
+        # first element and stops - so exactly one base/step pair is used and
+        # the count stays proportional to the lattice, not to the sweep.
+        for meaning in sorted({self._slot_meaning_map.get(slot, "")
+                               for slot in self._slot_meaning_map}):
+            if not meaning:
+                continue
+            for value in self._slot_values_for(meaning):
+                candidates.append(self._single_edit_candidate(
+                    bases[0], steps[0], arm_request, act_request,
+                    meaning, value))
+        return candidates
+
+    def _pointer_walk_candidate(self, base, step, arm_request, act_request,
+                                edit_all=False, edit_meanings=None,
+                                stop_index=None, stop_at=0,
+                                withhold_ack=None):
+        """One traversal program: arm once, then advance element by
+        element, letting the design settle on each one."""
+        steps = []
+        if self.reset_indices:
+            low_indices = self.reset_low_indices or self.reset_indices
+            steps.append(self._program_step(
+                {item: 0 for item in low_indices}, cycles=2))
+            steps.append(self._program_step(cycles=2))
+        # Arm the traversal with the base already on the address lanes: an
+        # interface that samples the pointer on the same cycle the request
+        # rises otherwise arms at a stale address.
+        steps.append(self._program_step({arm_request: 1}, address=base))
+        steps.append(self._program_step(address=base))
+        index_field = self._slot_index_field()
+        # Which value makes a slot *illegal* depends on what the slot means,
+        # and the specification supplies that meaning.  A size-like slot is
+        # rejected at zero and above a ceiling, a mode-like slot only at a
+        # value outside its enumeration, an address-like slot at zero, below a
+        # floor, unaligned, or with an offset that overflows the window.  The
+        # lattice below covers all of those shapes without naming a threshold,
+        # and the slot-to-value pairing is read from the IR rather than from a
+        # list of slots this design happens to have.
+        lattice = self._slot_illegal_values()
+        slot_values = []
+        for slot in sorted(getattr(self, "_slot_meaning_map", {})):
+            meaning = self._slot_meaning_map[slot]
+            if edit_meanings is not None and meaning not in edit_meanings:
+                continue
+            for value in lattice.get(meaning, (0xFFFFFFFF,)):
+                slot_values.append((slot, value))
+        if not slot_values:
+            slot_values = [(0, 0), (1, 1), (2, 0xFFFF), (3, 0x1001)]
+        # The walk length stays a property of the *traversal*, not of how many
+        # slot/value pairs the object happens to have: the slot lattice is
+        # spread across the descriptors and then repeats, so a long lattice
+        # cannot stretch the program past the end of the list.  A program that
+        # overshoots the list spends its remaining cycles on fetch misses.
+        depth = max(2, self.pointer_walk_depth)
+        for ordinal in range(depth):
+            address = (base + ordinal * step) & 0xFFFFFFFF
+            advance = {act_request: 1}
+            if edit_all and index_field is not None:
+                # Edit and fetch together: the store lands on this cycle, and
+                # the cycle returns "word written" instead of moving on to the
+                # validator.  A *second* fetch of the same element then latches
+                # the edited copy and reaches the check, which is the only
+                # ordering that lets an edited field be seen as illegal.
+                slot, value = slot_values[ordinal % len(slot_values)]
+                edit = dict(advance)
+                edit[index_field] = slot
+                edit[self.write_enable_indices[0]] = 1
+                steps.append(self._program_step(
+                    edit, data=value, address=address))
+                advance = {act_request: 1}
+            # Advance: request the next element.  Held for two cycles because
+            # the design may latch on the request and act on the following one.
+            steps.append(self._program_step(dict(advance), address=address))
+            steps.append(self._program_step(dict(advance), address=address))
+            if stop_index is not None and ordinal == stop_at:
+                # Stop *while the element is in flight*: the request lands on
+                # the cycle the design has just moved into its working state,
+                # which is the only window where a mid-transfer stop exists.
+                # Placed after the settle window it would arrive once the
+                # design is already idle, and the stop would never happen.
+                steps.append(self._program_step(
+                    {stop_index: 1}, address=address))
+                steps.append(self._program_step(cycles=2, address=address))
+                continue
+            # Settle: no request asserted, so a design that needs several
+            # cycles per element (validate, issue, handshake) can run them.
+            steps.append(self._program_step(cycles=4))
+            if withhold_ack is None:
+                # Service the completion handshake of whatever the element did.
+                for index in self.ack_indices:
+                    steps.append(self._program_step({index: 1}, cycles=2))
+            # With no acknowledgement the design spends its wait window and
+            # then its retry budget on this element.
+            steps.append(self._program_step(cycles=8))
+        if edit_all:
+            tag = "walk.edit." + "_".join(sorted(edit_meanings or ("all",)))
+        elif stop_index is not None:
+            tag = f"walk.st{stop_index}a{stop_at}"
+        elif withhold_ack is not None:
+            tag = "walk.noack"
+        else:
+            tag = "walk"
+        return SequenceCandidate(
+            f"ptrwalk.{tag}.b{base}.s{step}",
+            tuple(steps),
+            {"family": "pointer_walk",
+             "priority": self.pointer_walk_priority,
+             "base": base, "step": step})
+
+    def _slot_index_field(self):
+        """The field that selects which slot of an object is written, if any."""
+        selectors = self._slot_selector_fields()
+        return selectors[0].index if selectors else None
+
+    @property
+    def _slot_meaning_map(self):
+        """Slot ordinal -> the meaning the specification gave it."""
+        selectors = self._slot_selector_fields()
+        if not selectors:
+            return {}
+        return dict(selectors[0].slot_meanings)
+
+    # Which value makes a slot *illegal* depends on what the slot means, and
+    # the specification supplies that meaning.  The lattice covers every shape
+    # of rule a design could apply - rejected at zero, rejected above a
+    # ceiling, rejected below a floor, rejected when unaligned, rejected
+    # outside a small enumeration, rejected when a high bit is set, rejected
+    # when an offset overflows the address window - without naming any
+    # threshold this particular design uses.  Values that sit below a
+    # neighbouring check in the design's own evaluation order are included
+    # alongside the ones that reach the intended check, because that order is
+    # not stated.
+    _SLOT_ILLEGAL_VALUES = {
+        "length": (0, 0x2000),
+        "mode": (2, 0xFFFFFFFF),
+        "flag": (0xFFFFFFFF,),
+        "src": (0, 0x10001, 0xFFFF0),
+        "dst": (0, 0x10001, 0xFFFF0),
+        "addr": (0, 0x10001, 0xFFFF0),
+    }
+
+    def _slot_illegal_values(self):
+        """The lattice of illegal slot values, keyed by slot meaning."""
+        return self._SLOT_ILLEGAL_VALUES
+
+    def _slot_values_for(self, meaning):
+        """The values worth writing into a slot with this meaning."""
+        return self._SLOT_ILLEGAL_VALUES.get(meaning, (0xFFFFFFFF,))
+
+    def _single_edit_candidate(self, base, step, arm_request, act_request,
+                               meaning, value):
+        """Arm the traversal, then edit exactly one element and fetch it.
+
+        One element per program, because a rejected element moves the design
+        into a state whose exit this interface does not describe: anything
+        placed after the rejection is never reached, so a longer program buys
+        nothing and costs budget the other families need.
+        """
+        slot = None
+        for candidate_slot, candidate_meaning in self._slot_meaning_map.items():
+            if candidate_meaning == meaning:
+                slot = candidate_slot
+                break
+        if slot is None:
+            return None
+        index_field = self._slot_index_field()
+        if index_field is None:
+            return None
+        address = base
+        steps = []
+        if self.reset_indices:
+            low_indices = self.reset_low_indices or self.reset_indices
+            steps.append(self._program_step(
+                {item: 0 for item in low_indices}, cycles=2))
+            steps.append(self._program_step(cycles=2))
+        steps.append(self._program_step({arm_request: 1}, address=address))
+        steps.append(self._program_step(address=address))
+        # Store the edited word, then fetch the same element again so the
+        # stored value is the one the validator sees.
+        edit = {act_request: 1, index_field: slot,
+                self.write_enable_indices[0]: 1}
+        steps.append(self._program_step(edit, data=value, address=address))
+        steps.append(self._program_step({act_request: 1}, address=address))
+        steps.append(self._program_step({act_request: 1}, address=address))
+        steps.append(self._program_step(cycles=2))
+        return SequenceCandidate(
+            f"ptrwalk.edit1.{meaning}.v{value}.b{base}.s{step}",
+            tuple(steps),
+            {"family": "pointer_walk",
+             "priority": self.pointer_walk_priority + 1,
+             "base": base, "step": step})
 
     def _build_fallback_candidates(self):
         """Last-resort candidates for any controllable schema.
@@ -1549,7 +2661,7 @@ class _GenericPolicy(_QueuePolicy):
                             self._generic_sequence_last_probe_step)
         return int(step) - last_activity >= patience
 
-    def _next_generic_sequence(self, step, max_steps):
+    def _next_generic_sequence(self, step, max_steps, covered_bins=()):
         search = self._generic_sequence_search
         gains = search.observe(self._macro_scheduler.history)
         self._generic_trace_bootstrap_gains += sum(
@@ -1564,9 +2676,27 @@ class _GenericPolicy(_QueuePolicy):
         if not self.generic_sequence_immediate:
             remaining = max(0, int(max_steps) - int(step))
             max_candidate_cycles = max(16, remaining // 10)
+        blocked_families = []
+        condition_gains = sum(item.new_bins for item in search.candidates
+                              if item.metadata.get("family") ==
+                              "target_condition_program")
+        for family in ("target_condition_program", "target_input_waveform"):
+            probes = [item for item in search.candidates
+                      if item.metadata.get("family") == family]
+            successes = sum(item.new_bins > 0 for item in probes)
+            failures = sum(item.attempts - int(item.new_bins > 0)
+                           for item in probes)
+            if (int(step) < int(max_steps) // 4 or
+                    (family == "target_input_waveform" and
+                     condition_gains <= 0) or
+                    failures >= (self.target_condition_failure_limit +
+                                 2 * successes)):
+                blocked_families.append(family)
         candidate = search.select(
             max_cycles=max_candidate_cycles,
-            allow_learned=self._trace_exploration_allowed())
+            allow_learned=self._trace_exploration_allowed(),
+            blocked_families=blocked_families,
+            covered_target_indices=covered_bins)
         if candidate is None:
             return False
         self._generic_sequence_started = True
@@ -1984,11 +3114,14 @@ class _GenericPolicy(_QueuePolicy):
                       ("dr", "data", "txdata", "tx_data", "fifo_data")]
         if not (enables and data_ports):
             return False
+        candidate_addresses = {address for address, _ in
+                               candidate.register_writes}
+        target_port = next((item for item in data_ports
+                            if item.address in candidate_addresses), None)
+        fix_data_target = bool(self.target_task_program_fix and target_port)
         for register in enables[:1]:
             self._put_register_write(register.address, 0)
 
-        candidate_addresses = {address for address, _ in
-                               candidate.register_writes}
         # Add legal support configuration without overwriting target fields.
         support = self._registers_matching(
             "select", "slave", "ser", "baud", "divider",
@@ -1998,9 +3131,9 @@ class _GenericPolicy(_QueuePolicy):
                 continue
             text = f"{register.name} {register.description}".lower()
             if any(token in text for token in ("baud", "divider")):
-                value = (2, 8, 16)[cursor % 3]
+                value = (2 if fix_data_target else (2, 8, 16)[cursor % 3])
             elif any(token in text for token in ("threshold", "ftlr")):
-                value = (0, 1, 7)[cursor % 3]
+                value = (0 if fix_data_target else (0, 1, 7)[cursor % 3])
             else:
                 value = (1, 2, 4, 8)[cursor % 4]
             self._put_register_write(register.address, value)
@@ -2008,10 +3141,35 @@ class _GenericPolicy(_QueuePolicy):
             self._put_register_write(address, value)
         for register in enables[:1]:
             self._put_register_write(register.address, 1)
-        port = data_ports[cursor % len(data_ports)]
-        for value in (0x55, 0xAA, 0xFF)[:1 + cursor % 3]:
-            self._put_register_write(port.address, value)
+        port = (target_port if fix_data_target else
+                data_ports[cursor % len(data_ports)])
+        if port.address in candidate_addresses:
+            # The target *is* the payload, so the value has to survive: pushing
+            # a probe pattern instead would replace the very word the bin is
+            # about.  Repeating it also raises the FIFO occupancy, which is a
+            # coverage target of its own.
+            payload = next(value for address, value
+                           in candidate.register_writes
+                           if address == port.address)
+            for _ in range(4):
+                self._put_register_write(port.address, payload)
+        else:
+            for value in (0x55, 0xAA, 0xFF)[:1 + cursor % 3]:
+                self._put_register_write(port.address, value)
         self.put(self._sanitize(self._base_action()), candidate.hold_cycles)
+        # A mode-pinned input has to hold its level for the *whole* program, not
+        # only while a register is being written: the design checks that level
+        # at the moment it decides to start the transfer.  The level is applied
+        # across the queue rather than per write, so the settle window keeps it
+        # too - otherwise the input would drift back to its base value exactly
+        # when the transfer is supposed to begin.
+        levels = getattr(candidate, "input_levels", ())
+        if levels:
+            for position, (action, cycles) in enumerate(self.queue):
+                adjusted = action.copy()
+                for index, value in levels:
+                    adjusted[int(index)] = float(value)
+                self.queue[position] = (adjusted, cycles)
         self._macro_scheduler.attach_context(
             target_index=int(candidate.target_index),
             target_name=candidate.target_name,
@@ -2150,12 +3308,30 @@ class _GenericPolicy(_QueuePolicy):
     def _scheduled_generic_transaction(self, covered, covered_bins, step,
                                        max_steps, missing_targets,
                                        target_weights):
+        task_choice = None
+        preferred_macro = None
+        if self.target_task_scheduler_enabled:
+            self._macro_scheduler.complete(covered, step, covered_bins)
+            self._target_tasks.observe(self._macro_scheduler.history)
+            self._task_slot += 1
+            if (step >= min(1000, max_steps // 20) and
+                    self._task_slot % self.target_task_period == 0):
+                task_choice = self._target_tasks.select(
+                    missing_targets, self.joint_candidates, step, max_steps)
+                if task_choice is not None:
+                    target = self.coverage_targets[task_choice.target_index]
+                    preferred_macro = min(
+                        target.macro_hints,
+                        key=lambda name: (self._macro_scheduler.counts[name],
+                                          name))
         macro = self._macro_scheduler.select(
             covered, step, max_steps, covered_bins=covered_bins,
             target_weights=target_weights,
-            model_scores=getattr(self, "_universal_model_scores", None))
+            model_scores=getattr(self, "_universal_model_scores", None),
+            preferred_macro=preferred_macro,
+            finish=not self.target_task_scheduler_enabled)
         self.macro_trace.append(macro)
-        if self._next_interface_probe(covered_bins):
+        if task_choice is None and self._next_interface_probe(covered_bins):
             self._macro_scheduler.attach_plan([
                 {"action": action.astype(float).tolist(), "cycles": int(cycles)}
                 for action, cycles in self.queue
@@ -2173,8 +3349,8 @@ class _GenericPolicy(_QueuePolicy):
                 -self.coverage_dependency_graph.target_confidence(target.index),
                 target.index))
         cursor = self._macro_cursor.get(macro, 0)
-        if (self.generic_sequence_search_enabled and
-                self._next_generic_sequence(step, max_steps)):
+        if (task_choice is None and self.generic_sequence_search_enabled and
+                self._next_generic_sequence(step, max_steps, covered_bins)):
             self._macro_cursor[macro] = cursor + 1
             self._macro_scheduler.attach_plan([
                 {"action": action.astype(float).tolist(), "cycles": int(cycles)}
@@ -2182,8 +3358,8 @@ class _GenericPolicy(_QueuePolicy):
             ])
             self._active_target = None
             return
-        selected_joint = None
-        if self._joint_ranker is not None:
+        selected_joint = task_choice
+        if selected_joint is None and self._joint_ranker is not None:
             self._joint_ranker.observe(self._macro_scheduler.history)
             joint_pool = [self._joint_candidate_by_target[target.index]
                           for target in candidates
@@ -2214,6 +3390,8 @@ class _GenericPolicy(_QueuePolicy):
         if joint is None or not self._joint_register_program(joint, cursor):
             builders[macro]()
         else:
+            if task_choice is not None:
+                self._macro_scheduler.attach_context(target_task_selected=True)
             self._macro_cursor[macro] = cursor + 1
         self._macro_scheduler.attach_plan([
             {"action": action.astype(float).tolist(), "cycles": int(cycles)}
@@ -2321,12 +3499,14 @@ class InferenceInterface(_LocalInferenceInterface):
         if not plan:
             return
         # The LLM is advisory: it cannot replace a structurally validated
-        # expert or change the action-vector shape. For an unknown DUT, only a
-        # schema-consistent generic program may seed local exploration.
-        family = plan["family_hint"]
+        # expert or change the action-vector shape. A returned program only
+        # seeds local exploration, and only when its dimension agrees with the
+        # interface we parsed ourselves. The planner's own family label is
+        # deliberately not consulted here: branching on it would reintroduce a
+        # per-family routing table into the generic path.
         plan_dims = int(plan.get("action_dim") or 0)
         if (isinstance(self._policy, UniversalPolicy) and
-                family == "generic" and plan_dims == self.action_dims):
+                plan_dims == self.action_dims):
             self._policy = UniversalPolicy(
                 self.action_dims, fields=_parse_action_fields(spec), spec=spec,
                 planned_program=plan.get("program"),

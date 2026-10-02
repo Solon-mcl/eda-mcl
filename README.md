@@ -1,20 +1,9 @@
-# EDA Cup submission workspace
+# EDA Cup 覆盖率驱动验证
 
-最终上传文件为 [`deliverables/submission.zip`](deliverables/submission.zip)，压缩包内只包含 `submission.tar`，与组委会提交示例一致。SHA256 记录位于 [`deliverables/submission.tar.sha256`](deliverables/submission.tar.sha256)。
+评测入口为 [`app/inference/__init__.py`](app/inference/__init__.py) 的 `InferenceInterface`。当前算法、测试命令和最近验证结果见 [算法说明](docs/CURRENT_ALGORITHM_OVERVIEW.md)；公开与验证 DUT 的运行方法见 [验证包说明](validation_duts/README.md)。历史提交证据保存在 [提交证据目录](docs/submission_evidence/README.md)。
 
-推理入口位于 `app/inference/__init__.py`，实验脚本位于 `tools/`，设计报告、覆盖率报告和实验记录统一保存在 [`docs`](docs/)；提交证据归档位于 [`docs/submission_evidence`](docs/submission_evidence/README.md)。运行 `./build.sh` 可重新构建、测试、导出并压缩提交镜像。
+`tools/run_experiments.py` 用于本地评估。`build.sh` 用于构建 Docker 镜像，并在 `deliverables/` 生成 `submission.tar`、校验和与 `submission.zip`。当前实验结果不会复制进镜像。
 
-## 可选 DeepSeek-V4 配置
+## 可选云端提示
 
-推理模块支持赛题指定的 DeepSeek-V4 云端 API。调用只发生在每个 DUT 的 `InferenceInterface.__init__()`，逐周期 `predict()` 不访问网络。未提供密钥、请求超时、Token 被拒或响应不合法时，会自动使用本地 MLP、Deep Sets 和确定性策略。
-
-```bash
-export DEEPSEEK_API_KEY="..."
-export DEEPSEEK_BASE_URL="https://api.deepseek.com"   # 组委会端点可覆盖
-export DEEPSEEK_MODEL="deepseek-v4-pro"
-export DEEPSEEK_ENABLED="1"
-export DEEPSEEK_TIMEOUT_S="45"
-export DEEPSEEK_MAX_TOKENS="4096"
-```
-
-也兼容 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` 以及 OpenAI 风格的环境变量。默认不调用；仅当 `DEEPSEEK_ENABLED=1` 时启用。详细说明见 [`docs/CURRENT_ALGORITHM_OVERVIEW.md`](docs/CURRENT_ALGORITHM_OVERVIEW.md)。
+默认使用本地策略，不访问网络。设置 `DEEPSEEK_ENABLED=1` 可在初始化时启用 DeepSeek 程序提示；设置 `EDA_LLM_ENRICH=1` 可启用语义富化。二者独立，均只在初始化阶段调用；逐周期 `predict()` 不联网。端点、密钥和超时由相应环境变量配置，调用失败时回退到本地策略。实际可用开关以代码为准。

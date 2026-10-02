@@ -38,6 +38,15 @@ DUTS = {
     "tlb_mmu_validation": (
         "../validation_duts/tlb_mmu_validation/tlb_mmu_validation",
         "TlbMmuHarness"),
+    "dma_desc_engine_validation": (
+        "../validation_duts/dma_desc_engine_validation/dma_desc_engine_validation",
+        "DmaDescEngineHarness"),
+    "ecc_memory_validation": (
+        "../validation_duts/ecc_memory_validation/ecc_memory_validation",
+        "EccMemoryHarness"),
+    "noc_router_validation": (
+        "../validation_duts/noc_router_validation/noc_router_validation",
+        "NocRouterHarness"),
 }
 PUBLIC_DUTS = ("dma_xfer_public", "spi_master_public", "spi_xfer_public")
 
@@ -96,7 +105,9 @@ def load_harness(dut, backend):
     # the previous DUT's module before switching packages in one process.
     sys.modules.pop("run_verilator", None)
     rel, klass = DUTS[dut]
-    base = ROOT / "public_duts" / rel
+    public_root = Path(os.environ.get("EDA_PUBLIC_DUT_ROOT",
+                                     str(ROOT / "public_duts")))
+    base = public_root / rel
     spec = importlib.util.spec_from_file_location(f"harness_{dut}", base / "harness.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -129,11 +140,18 @@ def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
     timings = []
     first_hit_cycles = {int(index): 0 for index in np.flatnonzero(state > 0.5)}
     invalid_actions = 0
+    exact_action_trace = [] if trace_actions else None
     started = time.perf_counter()
     for step in range(steps):
         tick = time.perf_counter_ns()
         action = np.asarray(agent.predict(state, step, steps),
                             dtype=np.float32).reshape(-1)
+        if exact_action_trace is not None:
+            values = action.astype(float).tolist()
+            if exact_action_trace and exact_action_trace[-1]["action"] == values:
+                exact_action_trace[-1]["cycles"] += 1
+            else:
+                exact_action_trace.append({"action": values, "cycles": 1})
         timings.append(time.perf_counter_ns() - tick)
         expected_dim = int(getattr(agent, "action_dims", action.size))
         if action.size != expected_dim or not np.all(np.isfinite(action)):
@@ -180,13 +198,30 @@ def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
                 int(os.environ["EDA_JOINT_MAX_FAILED_ATTEMPTS"])
                 if "EDA_JOINT_MAX_FAILED_ATTEMPTS" in os.environ else "auto"),
             "adaptive_joint_max_candidates": int(os.environ.get(
-                "EDA_ADAPTIVE_JOINT_MAX_CANDIDATES", "8")),
+                "EDA_ADAPTIVE_JOINT_MAX_CANDIDATES", "160")),
             "field_transaction_templates": field_transaction_templates_enabled(),
             "robust_field_writes": robust_field_writes_enabled(),
             "field_write_repeats": int(os.environ.get(
                 "EDA_FIELD_WRITE_REPEATS", "16")),
             "generic_sequence_search": generic_sequence_search_enabled(),
             "generic_trace_learning": generic_trace_learning_enabled(),
+            "target_condition_probes": os.environ.get(
+                "EDA_TARGET_CONDITION_PROBES", "1").lower() not in
+                ("0", "false", "no"),
+            "target_input_waveforms": os.environ.get(
+                "EDA_TARGET_INPUT_WAVEFORMS", "1").lower() not in
+                ("0", "false", "no"),
+            "credit_packet_programs": os.environ.get(
+                "EDA_CREDIT_PACKET_PROGRAMS", "1").lower() not in
+                ("0", "false", "no"),
+            "target_task_scheduler_requested": os.environ.get(
+                "EDA_TARGET_TASK_SCHEDULER", "1").lower() not in
+                ("0", "false", "no"),
+            "target_task_program_fix_requested": os.environ.get(
+                "EDA_TARGET_TASK_PROGRAM_FIX", "1").lower() not in
+                ("0", "false", "no"),
+            "target_task_period": int(os.environ.get(
+                "EDA_TARGET_TASK_PERIOD", "12")),
             "llm_enrich": os.environ.get("EDA_LLM_ENRICH", "0").lower()
             in ("1", "true", "yes"),
             "llm_model": os.environ.get("EDA_LLM_MODEL",
@@ -194,6 +229,8 @@ def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
                                                        "auto")),
         },
     }
+    if exact_action_trace is not None:
+        result["exact_action_trace"] = exact_action_trace
     if agent_kind == "full":
         result["llm_status"] = getattr(agent, "llm_status", None)
         result["llm_enrichment"] = getattr(agent, "llm_enrichment_status", None)
@@ -204,6 +241,14 @@ def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
                 for value in trace
             ]
         policy = getattr(agent, "_policy", None)
+        result["algorithm_parameters"]["target_task_applicable"] = bool(
+            getattr(policy, "target_task_applicable", False))
+        result["algorithm_parameters"]["data_port_alias_count"] = len(
+            getattr(policy, "_data_port_aliases", ()))
+        result["algorithm_parameters"]["target_task_scheduler_applied"] = bool(
+            getattr(policy, "target_task_scheduler_enabled", False))
+        result["algorithm_parameters"]["target_task_program_fix_applied"] = bool(
+            getattr(policy, "target_task_program_fix", False))
         generic_search = getattr(policy, "_generic_sequence_search", None)
         result["algorithm_parameters"]["generic_sequence_candidate_count"] = (
             len(generic_search.candidates) if generic_search is not None else 0)
@@ -252,6 +297,12 @@ def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
             result["joint_program_new_bins"] = sum(
                 int(item.get("new_bins", 0)) for item in history
                 if item.get("context", {}).get("joint_candidate"))
+            result["target_task_programs_completed"] = sum(
+                1 for item in history
+                if item.get("context", {}).get("target_task_selected"))
+            result["target_task_program_new_bins"] = sum(
+                int(item.get("new_bins", 0)) for item in history
+                if item.get("context", {}).get("target_task_selected"))
             result["generic_sequence_programs_completed"] = sum(
                 1 for item in history
                 if item.get("context", {}).get("generic_sequence_search"))
@@ -291,6 +342,10 @@ def run(dut, steps, interval, backend, agent_kind="full", seed=260923,
             ranker = getattr(policy, "_joint_ranker", None)
             result["joint_candidate_stats"] = (
                 ranker.snapshot() if ranker is not None else {})
+            tasks = getattr(policy, "_target_tasks", None)
+            if tasks is not None:
+                tasks.observe(history)
+                result["target_task_stats"] = tasks.snapshot()
     if hasattr(harness._dut, "close"):
         harness._dut.close()
     return result

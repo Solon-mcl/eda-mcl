@@ -7,7 +7,7 @@ within legal shapes/ranges and to expose register-style transaction structure.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import re
 
 
@@ -202,6 +202,16 @@ def _infer_role(name: str, description: str) -> str:
 
 _BULLET_KEY = re.compile(
     r"^[-*+]\s+\*{0,2}`?([^`\s:：|*]+)`?\*{0,2}\s*[:：]")
+# A single bullet often documents several fields at once, because they share a
+# behaviour: "- `write_strobe` / `write_index`: write `data` into word 0..3".
+# Treating only the first name as the key leaves every later name with an empty
+# keyed description, which silently disables description-derived inference for
+# exactly the fields whose names carry the least information.
+_JOINT_KEY = re.compile(
+    r"^[-*+]\s+(?:\*{0,2}`?[^`\s:：|*]+`?\*{0,2}\s*"
+    r"(?:/|,|，|;|；|and|&|\+)\s*)+"
+    r"\*{0,2}`?[^`\s:：|*]+`?\*{0,2}\s*[:：]")
+_JOINT_KEY_NAME = re.compile(r"`([^`]+)`|\*{2}([^*]+)\*{2}")
 _TABLE_KEY = re.compile(r"^\|\s*`?([^`\s|]+)`?\s*\|")
 _RANGE_KEY = re.compile(r"^([A-Za-z_]+)(\d+)\.\.([A-Za-z_]*)(\d+)$")
 _INDEXED_NAME = re.compile(r"^([A-Za-z_]+)(\d+)$")
@@ -226,6 +236,20 @@ def _key_covers(key: str, name: str) -> bool:
     return min(first, last) <= int(indexed.group(2)) <= max(first, last)
 
 
+def _joint_key_names(line: str):
+    """Every field name a joint bullet key documents, in declaration order."""
+    head = line.split(":", 1)[0].split("：", 1)[0]
+    names = [match.group(1) or match.group(2)
+             for match in _JOINT_KEY_NAME.finditer(head)]
+    if len(names) < 2:
+        # Unquoted style: "- a / b: ...";
+        plain = re.sub(r"^[-*+]\s+", "", head)
+        plain = plain.replace("*", "")
+        parts = re.split(r"\s*(?:/|,|，|;|；|\band\b|&|\+)\s*", plain)
+        names = [part.strip() for part in parts if part.strip()]
+    return tuple(names)
+
+
 def keyed_description_for(spec: str, name: str, skip_lines=()) -> str:
     """Description restricted to lines where *name* is the leading key.
 
@@ -236,15 +260,37 @@ def keyed_description_for(spec: str, name: str, skip_lines=()) -> str:
     table key (``| `x` | ... |``).
     """
     lines = []
-    for index, line in enumerate(spec.splitlines()):
+    raw = spec.splitlines()
+    for index, line in enumerate(raw):
         if index in skip_lines:
             continue
         stripped = line.strip()
+        matched = False
         for pattern in (_BULLET_KEY, _TABLE_KEY):
             match = pattern.match(stripped)
             if match and _key_covers(match.group(1), name):
-                lines.append(stripped)
+                matched = True
                 break
+        # A joint key such as "- `word_we` / `word_idx`: ..." belongs to every
+        # name it lists, not just the first one.
+        if not matched and _JOINT_KEY.match(stripped):
+            matched = name in _joint_key_names(stripped)
+        if not matched:
+            continue
+        # A bullet commonly wraps onto continuation lines before the next
+        # bullet.  Those lines carry details the key line truncates away
+        # ("Word 0 is the source address, word 1 the length, ..."), so fold
+        # them in as well.
+        lines.append(stripped)
+        for follow in raw[index + 1:]:
+            stripped_follow = follow.strip()
+            if not stripped_follow:
+                break
+            if re.match(r"^[-*+]\s", stripped_follow) or stripped_follow.startswith("|"):
+                break
+            if stripped_follow.startswith("#"):
+                break
+            lines.append(stripped_follow)
     return " ".join(lines)
 
 
@@ -296,6 +342,68 @@ def _infer_role_from_description(keyed: str):
     return None
 
 
+# A field can select *which slot* of a multi-word object a data write lands in
+# ("write data into word 0..3", "selects the FIFO entry", "channel index").
+# Such a field is a write-path qualifier, not an unknown scalar: the object is
+# only written correctly once every slot carries its own value, so a strategy
+# that sweeps values one at a time can never build a legal object.  The
+# triggers describe the *act of selecting a slot*, never the name of the object
+# the slots belong to.
+_SLOT_SELECTOR_TRIGGERS = (
+    "word 0", "word zero", "word index", "which word",
+    "word select", "selected word", "written word",
+    "slot index", "which slot", "slot select", "selected slot",
+    "entry index", "entry select", "which entry",
+    "bank select", "channel index", "channel select",
+    "sub-word", "subword", "multi-word", "multi word",
+)
+
+# Slot meanings a spec can enumerate, in the order the object declares them.
+# Only used to *label* a slot so the value written there can be chosen to
+# exercise the design; a spec that names none still gets the full sweep.
+_SLOT_MEANING_TRIGGERS = (
+    ("source", "src"), ("destination", "dst"), ("length", "length"),
+    ("size", "length"), ("count", "length"), ("mode", "mode"),
+    ("flag", "flag"), ("address", "addr"), ("control", "ctrl"),
+    ("status", "status"), ("tag", "tag"), ("data", "data"),
+)
+
+
+def detect_slot_selector(keyed: str):
+    """Slot count and per-slot meaning labels, or ``None`` if not a selector.
+
+    Returns ``(count, meanings)`` where ``count`` is the exclusive upper bound
+    on the selector value and ``meanings`` maps a slot index to a coarse label
+    (or ``None`` where the specification does not say).
+    """
+    text = keyed.lower()
+    if not text:
+        return None
+    if not any(trigger in text for trigger in _SLOT_SELECTOR_TRIGGERS):
+        return None
+    span = re.search(rf"({_NUMBER})\s*(?:~|\.\.|到|至|-)\s*({_NUMBER})", text)
+    if span:
+        low, high = _number(span.group(1)), _number(span.group(2))
+        count = max(low, high) + 1
+    else:
+        single = re.search(r"word\s*({_NUMBER})", text)
+        count = _number(single.group(1)) + 1 if single else 4
+    if not 2 <= count <= 32:
+        return None
+    meanings = {}
+    for label, tag in _SLOT_MEANING_TRIGGERS:
+        # Prose either spells the copula out ("word 0 is the source") or drops
+        # it in a list ("word 1 the length, word 2 the destination").  Both
+        # forms have to be read, or only the first slot ever gets a label.
+        for match in re.finditer(
+                rf"(?:word|slot|entry|index|register)?\s*({_NUMBER})\s*"
+                rf"(?:(?:is|:|=)\s*)?(?:the\s+|a\s+|an\s+)?{label}\b", text):
+            index = _number(match.group(1))
+            if index < count:
+                meanings.setdefault(index, tag)
+    return count, meanings
+
+
 def _infer_bounds(name: str, description: str, role: str) -> tuple[int, int, int]:
     text = description.lower()
     range_match = re.search(rf"({_NUMBER})\s*(?:~|\.\.|到|至)\s*({_NUMBER})", text)
@@ -328,10 +436,38 @@ def _infer_bounds(name: str, description: str, role: str) -> tuple[int, int, int
 def _parse_enums(description: str) -> dict[int, str]:
     output = {}
     for match in re.finditer(
-            rf"\b({_NUMBER})\s*=\s*([A-Za-z_][A-Za-z0-9_ -]*?)(?=\s*[,;/，；]|$)",
+            rf"\b({_NUMBER})\s*=\s*([A-Za-z_][A-Za-z0-9_ -]*?)(?=\s*[,;/，；.]|$)",
             description, re.IGNORECASE):
         output[_number(match.group(1))] = match.group(2).strip().lower()
     return output
+
+
+def _port_domain_from_spec(spec: str, field_name: str) -> tuple[int, int] | None:
+    """Read an explicit port enumeration shared by port action fields."""
+    if "port" not in field_name.lower().split("_"):
+        return None
+    for match in re.finditer(r"\bports?\s+(?:are|:|=)\s*([^\n.]*)",
+                             spec, re.IGNORECASE):
+        values = [_number(item.group(1)) for item in re.finditer(
+            rf"\b[A-Za-z_][A-Za-z0-9_]*\s*=\s*({_NUMBER})\b",
+            match.group(1), re.IGNORECASE)]
+        if len(values) >= 2 and len(values) == len(set(values)) and max(values) <= 255:
+            return min(values), max(values)
+    return None
+
+
+def _mesh_neighbor_probe_bound(spec: str, field_name: str) -> int | None:
+    """Permit a one-hop destination probe around a declared mesh coordinate."""
+    name = field_name.lower()
+    match_name = re.fullmatch(r"(?:dest|destination|target)_([xy])", name)
+    if not match_name or not re.search(r"\b(?:mesh|grid)\b", spec, re.IGNORECASE):
+        return None
+    match = re.search(r"\b(?:router|node)\s+at\s+coordinate\s*"
+                      r"\(\s*(\d+)\s*,\s*(\d+)\s*\)", spec, re.IGNORECASE)
+    if not match:
+        return None
+    coordinate = int(match.group(1 if match_name.group(1) == "x" else 2))
+    return coordinate + 1 if coordinate <= 15 else None
 
 
 @dataclass(frozen=True)
@@ -345,6 +481,17 @@ class FieldIR:
     active_low: bool = False
     enums: dict[int, str] = field(default_factory=dict)
     description: str = ""
+    # Non-empty only when the specification describes this field as selecting
+    # a slot of a multi-word object.  Maps slot index to a coarse meaning label
+    # (may be ``None``), so a write program can fill every slot.
+    slot_meanings: dict = field(default_factory=dict)
+    # Non-empty when the specification ties this input's level to a
+    # configuration mode, e.g. "SSP mode `ss_in_n`=0".  Maps the mode token the
+    # specification used (lowercased, e.g. ``ssp``) to the level the input has
+    # to hold.  A transfer simply does not start when the level is wrong, so a
+    # program that configures a mode without matching the level never reaches
+    # the state it is aiming at.
+    mode_levels: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -352,6 +499,11 @@ class RegisterFieldIR:
     name: str
     lsb: int
     msb: int
+    # Free text the specification attached to this bit field, gathered from
+    # wherever it appears (usually a prose section after the register table).
+    # It is the only place a field's *meaning* is stated, so anything that has
+    # to reason about a field rather than merely write it needs this.
+    description: str = ""
 
     @property
     def mask(self) -> int:
@@ -432,8 +584,29 @@ class DutSemanticIR:
         return float(min(item.maximum, max(item.minimum, value)))
 
 
+def _register_field_notes(spec: str) -> dict:
+    """Free-text notes attached to a bit field name, wherever they appear.
+
+    A register table normally gives a coarse description of the whole register
+    and leaves the per-bit meaning to a later prose section, so the sentence
+    that actually explains a field lives *outside* the table.  Two shapes are
+    read: a bolded name (``**SRL_TEST**：...``) and a bracketed one
+    (``- `[0]=MW_MOD`：...``).
+    """
+    notes: dict[str, str] = {}
+    for match in re.finditer(
+            r"\*\*([A-Za-z_][A-Za-z0-9_]*)\*\*\s*[：:]\s*([^\n]+)", spec):
+        notes.setdefault(match.group(1).lower(), match.group(2).strip())
+    for match in re.finditer(
+            r"`\[(\d+)(?::(\d+))?\]\s*=\s*([A-Za-z_][A-Za-z0-9_]*)`\s*[：:]"
+            r"\s*([^\n]+)", spec):
+        notes.setdefault(match.group(3).lower(), match.group(4).strip())
+    return notes
+
+
 def _parse_registers(spec: str) -> list[RegisterIR]:
     found = {}
+    notes = _register_field_notes(spec)
     patterns = (
         r"\bregister\s+({_NUMBER})\s*\(\s*`?([A-Za-z_][A-Za-z0-9_]*)`?\s*\)\s*:?\s*([^\n]*)",
         r"^\s*\|\s*({_NUMBER})\s*\|\s*`?([A-Za-z_][A-Za-z0-9_]*)`?\s*\|([^\n]*)$",
@@ -445,7 +618,7 @@ def _parse_registers(spec: str) -> list[RegisterIR]:
             description = match.group(3).strip(" |")
             found.setdefault(address, RegisterIR(
                 address, match.group(2).lower(), description,
-                _parse_register_fields(description)))
+                _fields_with_notes(description, notes)))
     range_pattern = re.compile(
         rf"^\s*\|\s*({_NUMBER})\s*(?:~|\.\.|到|至)\s*({_NUMBER})\s*\|\s*"
         r"`?([A-Za-z_][A-Za-z0-9_]*)`?\s*\|([^\n]*)$",
@@ -459,8 +632,20 @@ def _parse_registers(spec: str) -> list[RegisterIR]:
             description = match.group(4).strip(" |")
             found.setdefault(address, RegisterIR(
                 address, match.group(3).lower(), description,
-                _parse_register_fields(description)))
+                _fields_with_notes(description, notes)))
     return [found[key] for key in sorted(found)]
+
+
+def _fields_with_notes(description: str, notes: dict) -> tuple[RegisterFieldIR, ...]:
+    """Bit fields from the register table, annotated with their prose notes."""
+    fields = _parse_register_fields(description)
+    if not notes:
+        return fields
+    out = []
+    for item in fields:
+        note = notes.get(item.name)
+        out.append(replace(item, description=note) if note else item)
+    return tuple(out)
 
 
 def _parse_register_fields(description: str) -> tuple[RegisterFieldIR, ...]:
@@ -507,6 +692,48 @@ def _parse_packed_fields(spec: str) -> list[PackedFieldIR]:
 
 def _clean_symbol(value: str) -> str:
     return value.strip().strip("`'\".,:;，。；").lower()
+
+
+# A specification can pin an input's level to a configuration mode.  The shape
+# is prose, but a regular one: a mode token, the word "mode", and the level the
+# input has to hold -- written in Chinese ("SSP 模式 `ss_in_n`=0") or in English
+# ("SSP mode `ss_in_n`=0").  Several modes can share one clause joined by a
+# slash ("SPI/Microwire 模式 `ss_in_n`=1"), so the token list is split apart.
+_MODE_LEVEL_PATTERNS = (
+    r"([A-Za-z0-9][A-Za-z0-9/\s、,]{0,32}?)\s*模式\s*`?\s*{field}\s*=\s*(\d+)",
+    r"([A-Za-z0-9][A-Za-z0-9/\s,]{0,32}?)\s+mode\s*`?\s*{field}\s*=\s*(\d+)",
+)
+_MODE_TOKEN_SPLIT = re.compile(r"[/、,]|\s+or\s+|\s+and\s+|－|\s+")
+
+
+def detect_mode_levels(spec: str, name: str) -> dict:
+    """Levels an input must hold, keyed by the mode token the spec used.
+
+    A transfer does not start when the level is wrong, so the level is not a
+    cosmetic detail: a program that configures a mode without matching the
+    level stops at the first precondition and never reaches the state it was
+    aiming at.  Only the *pairing* is read from prose here; nothing about which
+    mode is which is assumed.
+    """
+    escaped = re.escape(name)
+    levels: dict[str, int] = {}
+    for pattern in _MODE_LEVEL_PATTERNS:
+        try:
+            # ``replace`` instead of ``format``: the quantifiers in the pattern
+            # (``{0,32}``) would otherwise be read as format fields.
+            regex = re.compile(pattern.replace("{field}", escaped),
+                               re.IGNORECASE)
+        except re.error:
+            continue
+        for match in regex.finditer(spec):
+            tokens, level = match.group(1), int(match.group(2))
+            if level not in (0, 1):
+                continue
+            for token in _MODE_TOKEN_SPLIT.split(tokens):
+                token = _clean_symbol(token)
+                if token and 2 <= len(token) <= 20:
+                    levels.setdefault(token, level)
+    return levels
 
 
 def _parse_structured_constraints(spec: str, field_names=()):
@@ -621,13 +848,17 @@ def build_semantic_ir(spec: str, role_overrides=None,
     fields = []
     for index, name in enumerate(names):
         description = _description_for(spec, name, skip_lines)
+        keyed = keyed_description_for(spec, name, skip_lines)
         role = _infer_role(name, description)
         if role == "scalar":
             # Name-only inference failed; the spec prose may still say what the
             # signal is.  Only the keyed lines are trusted here, since mixed
             # lines mention several fields at once.
-            role = _infer_role_from_description(
-                keyed_description_for(spec, name, skip_lines)) or role
+            role = _infer_role_from_description(keyed) or role
+        # The selector names identify bit positions even when their prose
+        # mentions faults; they are not Boolean fault-injection triggers.
+        if re.fullmatch(r"(?:fault_)?bit_?[a-z0-9]+", name.lower()):
+            role = "scalar"
         override = overrides.get(name.lower())
         if override is not None and override in SEMANTIC_ROLES:
             # External role hints fill gaps; they do not second-guess a role the
@@ -637,11 +868,59 @@ def build_semantic_ir(spec: str, role_overrides=None,
                                           override_all_roles):
                 role = override
         minimum, maximum, width = _infer_bounds(name, description, role)
+        # The action declaration can name a scalar input while a nearby prose
+        # sentence defines its shared port enumeration. An explicit enum on the
+        # field itself is equally authoritative, including its final item.
+        enums = _parse_enums(description)
+        if enums and role in ("scalar", "operation", "mode", "priority", "selector"):
+            minimum = min(minimum, min(enums))
+            maximum = max(maximum, max(enums))
+            width = max(width, maximum.bit_length())
+        port_domain = _port_domain_from_spec(spec, name)
+        if port_domain is not None and role == "scalar":
+            minimum = min(minimum, port_domain[0])
+            maximum = max(maximum, port_domain[1])
+            width = max(width, maximum.bit_length())
+        neighbor = _mesh_neighbor_probe_bound(spec, name)
+        if neighbor is not None and role == "scalar":
+            maximum = max(maximum, neighbor)
+            width = max(width, maximum.bit_length())
+        # A pair of fault-site selectors may be documented only as bit
+        # numbers, while the word width appears elsewhere in the spec. Their
+        # values are positions within that word, not one-bit Boolean flags.
+        if (role == "scalar" and re.fullmatch(
+                r"(?:fault_)?bit_?[a-z0-9]+", name.lower()) and
+                re.search(r"\bbit\b|bit_|位", description.lower())):
+            word_widths = [int(value) for value in re.findall(
+                r"\b(\d+)\s*-\s*bit\b", spec.lower())]
+            if word_widths:
+                positions = min(64, max(word_widths))
+                maximum = max(maximum, positions - 1)
+                width = max(width, maximum.bit_length())
         active_low = (name.endswith("_n") or
                       "active-low" in description.lower() or
                       "低有效" in description)
+        slot = detect_slot_selector(keyed) if role == "scalar" else None
+        slot_meanings = {}
+        if slot is not None:
+            count, labels = slot
+            # The declared range is authoritative for how many slots exist; the
+            # prose only labels them.  Keep the two consistent so a program
+            # never writes a slot the field cannot express.
+            maximum = max(int(maximum), count - 1)
+            minimum = min(int(minimum), 0)
+            slot_meanings = {index: labels.get(index)
+                             for index in range(count)}
+        # Only single-bit inputs are considered: a mode pins a level, and a
+        # multi-bit field is not a level.  The pairing is extracted even when
+        # the role rules could not classify the field, because an unclassified
+        # input is exactly the one a program would otherwise never drive.
+        mode_levels = {}
+        if not slot_meanings and int(maximum) <= 1:
+            mode_levels = detect_mode_levels(spec, name)
         fields.append(FieldIR(name, index, role, minimum, maximum, width,
-                              active_low, _parse_enums(description), description))
+                              active_low, enums,
+                              description, slot_meanings, mode_levels))
     constraints, dependencies, timings = _parse_structured_constraints(
         spec, names)
     return DutSemanticIR(dims, fields, _parse_registers(spec), constraints,

@@ -1,1 +1,0 @@
-# No additional dependencies. NumPy is provided by the official base image.

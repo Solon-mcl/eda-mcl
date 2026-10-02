@@ -1,0 +1,32 @@
+{
+  "dut_name":"noc_router_validation","version":"v1.1","total_bins":75,
+  "coverpoints":[
+    {"name":"input_port","type":"basic","signal":"event_input_port","when":"activity_valid","bins":[{"name":"local","value":0},{"name":"north","value":1},{"name":"east","value":2},{"name":"south","value":3},{"name":"west","value":4}]},
+    {"name":"output_port","type":"basic","signal":"fwd_output_port","when":"forward_valid","bins":[{"name":"local","value":0},{"name":"north","value":1},{"name":"east","value":2},{"name":"south","value":3},{"name":"west","value":4}]},
+    {"name":"vc","type":"basic","signal":"event_vc","when":"activity_valid","bins":[{"name":"vc0","value":0},{"name":"vc1","value":1}]},
+    {"name":"flit_type","type":"basic","signal":"event_flit_type","when":"activity_valid","bins":[{"name":"head","value":0},{"name":"body","value":1},{"name":"tail","value":2},{"name":"single","value":3}]},
+    {"name":"route_mode","type":"basic","signal":"fwd_route_mode","when":"forward_valid","bins":[{"name":"deterministic","value":0},{"name":"adaptive","value":1},{"name":"escape","value":2},{"name":"local","value":3}]},
+    {"name":"result","type":"basic","signal":"result","bins":[{"name":"idle","value":0},{"name":"enqueued","value":1},{"name":"forwarded","value":2},{"name":"local_deliver","value":3},{"name":"no_credit","value":4},{"name":"drop_full","value":5},{"name":"arb_conflict","value":6},{"name":"router_stall","value":7}]},
+    {"name":"queue_level","type":"boundary","signal":"queue_class","bins":[{"name":"empty","value":0},{"name":"one","value":1},{"name":"almost_full","value":2},{"name":"full","value":3}]},
+    {"name":"credit_class","type":"condition","signal":"credit_class","bins":[{"name":"none","value":0},{"name":"partial","value":1},{"name":"all","value":2}]},
+    {"name":"congestion_class","type":"condition","signal":"congestion_class","bins":[{"name":"none","value":0},{"name":"single","value":1},{"name":"multiple","value":2}]},
+    {"name":"arb_requests","type":"condition","signal":"arb_class","bins":[{"name":"none","value":0},{"name":"one","value":1},{"name":"conflict","value":2}]},
+    {"name":"in_x_out","type":"cross","signal":"fwd_input_port,fwd_output_port","when":"forward_valid","bins":[{"name":"l_n","cross":[0,1]},{"name":"l_e","cross":[0,2]},{"name":"l_s","cross":[0,3]},{"name":"l_w","cross":[0,4]},{"name":"n_e","cross":[1,2]},{"name":"e_n","cross":[2,1]},{"name":"s_w","cross":[3,4]},{"name":"w_s","cross":[4,3]},{"name":"n_local","cross":[1,0]},{"name":"local_local","cross":[0,0]}]},
+    {"name":"vc_x_route","type":"cross","signal":"fwd_vc_role,fwd_route_mode","when":"forward_valid","bins":[{"name":"adaptive_vc_det","cross":[0,0]},{"name":"adaptive_vc_route","cross":[0,1]},{"name":"adaptive_vc_local","cross":[0,3]},{"name":"escape_vc_route","cross":[1,2]},{"name":"escape_vc_local","cross":[1,3]}]},
+    {"name":"flit_x_result","type":"cross","signal":"fwd_flit_type,fwd_result","when":"forward_valid","bins":[{"name":"head_forward","cross":[0,2]},{"name":"body_forward","cross":[1,2]},{"name":"tail_forward","cross":[2,2]},{"name":"single_forward","cross":[3,2]},{"name":"single_local","cross":[3,3]}]},
+    {"name":"seq_enqueue_forward","type":"seq_hit","seq":"seq1","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_credit_recover","type":"seq_hit","seq":"seq2","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_conflict_resolve","type":"seq_hit","seq":"seq3","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_adaptive_detour","type":"seq_hit","seq":"seq4","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_escape_route","type":"seq_hit","seq":"seq5","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_buffer_overflow","type":"seq_hit","seq":"seq6","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_head_body_tail","type":"seq_hit","seq":"seq7","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_local_delivery","type":"seq_hit","seq":"seq8","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_sustained_credit_block","type":"seq_hit","seq":"seq9","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_five_way_conflict","type":"seq_hit","seq":"seq10","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_adaptive_escape_pair","type":"seq_hit","seq":"seq11","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_full_buffer_recovery","type":"seq_hit","seq":"seq12","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_congestion_flip","type":"seq_hit","seq":"seq13","bins":[{"name":"hit","value":1}]},
+    {"name":"seq_tail_credit_recovery","type":"seq_hit","seq":"seq14","bins":[{"name":"hit","value":1}]}
+  ]
+}

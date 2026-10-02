@@ -1,0 +1,13 @@
+{
+  "source_spec": "public_duts/spi_master_public/spi_master_public/dut/dut_spec.md",
+  "bus": {"write_enable": 0, "address": 1, "data": 2},
+  "registers": {
+    "enable": 2,
+    "divider": 5,
+    "start_threshold": 6,
+    "data_port": [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
+  },
+  "payload_bits": 32,
+  "strict_start_threshold": true,
+  "minimum_valid_divider": 2
+}

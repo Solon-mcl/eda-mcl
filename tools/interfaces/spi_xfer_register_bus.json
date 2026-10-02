@@ -1,0 +1,13 @@
+{
+  "source_spec": "public_duts/spi_xfer_public/spi_xfer_public/dut/dut_spec.md",
+  "bus": {"write_enable": 0, "address": 1, "data": 2},
+  "registers": {
+    "enable": 2,
+    "divider": 4,
+    "start_threshold": 5,
+    "data_port": [9]
+  },
+  "payload_bits": 32,
+  "strict_start_threshold": true,
+  "minimum_valid_divider": 1
+}

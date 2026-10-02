@@ -1,0 +1,15 @@
+.git
+.workbuddy/
+tmp/
+results/
+docs/
+guide/
+public_duts/
+validation_duts/
+training/
+synthesis/
+tools/
+deliverables/
+submission_source/
+__pycache__/
+*.py[cod]
